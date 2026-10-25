@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>霓虹看板 · 自定义界面</title>
+<!-- 相对路径引用外部样式：用来验证 wsp:// 协议能正常加载包内资源 -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 动态交互背景 -->
+<div class="bg">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+  <div class="grid"></div>
+</div>
+
+<main class="wrap">
+
+  <header class="head">
+    <div class="brand">
+      <span class="logo" id="wsIcon">🌈</span>
+      <div>
+        <h1 id="wsName">（等待宿主消息…）</h1>
+        <p id="wsDesc" class="sub"></p>
+      </div>
+    </div>
+    <div class="badges">
+      <span class="badge">自定义界面</span>
+      <span class="badge ghost" id="bridge">宿主通道：未连接</span>
+    </div>
+  </header>
+
+  <section class="cards" id="cards"></section>
+
+  <section class="console">
+    <div class="console-head">
+      <span>输出（由宿主回传）</span>
+      <button id="clear">清空</button>
+    </div>
+    <div class="console-body" id="log"></div>
+  </section>
+
+  <footer class="foot">
+    界面由本工作区自带（沙箱 iframe）· 点击卡片是"向宿主请求执行"· 命令与输出始终由宿主掌控
+  </footer>
+
+</main>
+
+<script>
+/* ── 与宿主的通信（postMessage） ──────────────────────────────
+   本页面运行在沙箱 iframe 中：拿不到宿主 DOM、cookie、localStorage，
+   也不能直接执行命令——想跑命令只能"请求宿主"。
+   ──────────────────────────────────────────────────────────── */
+let actions = [];
+let running = {};
+
+function post(msg){ parent.postMessage(msg, '*'); }
+
+function stamp(){
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
+
+function logLine(text, cls){
+  const el = document.getElementById('log');
+  const div = document.createElement('div');
+  div.className = 'ln ' + (cls || '');
+  div.innerHTML = '<span class="t">[' + stamp() + ']</span> ';
+  div.appendChild(document.createTextNode(text));
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+
+function render(){
+  const box = document.getElementById('cards');
+  box.innerHTML = '';
+  actions.forEach(a => {
+    const st = running[a.id] || (a.last ? a.last.state : 'idle');
+    const card = document.createElement('div');
+    card.className = 'card ' + st;
+    card.innerHTML =
+      '<div class="ring"></div>' +
+      '<div class="ic"></div>' +
+      '<div class="title"></div>' +
+      '<div class="cmd"></div>' +
+      '<div class="st"></div>';
+    card.querySelector('.ic').textContent = a.icon || '▶';
+    card.querySelector('.title').textContent = a.title || '';
+    card.querySelector('.cmd').textContent = a.command || '';
+    card.querySelector('.st').textContent =
+      st === 'running' ? '● 运行中' :
+      st === 'success' ? '✓ 成功' :
+      st === 'failed'  ? '✗ 失败' : '就绪';
+    card.onclick = () => {
+      if (running[a.id]) return;
+      post({ type: 'run', actionId: a.id });     // ← 只是"请求"，执行由宿主决定
+    };
+    box.appendChild(card);
+  });
+}
+
+window.addEventListener('message', ev => {
+  const m = ev.data || {};
+  if (m.type === 'host-init') {
+    actions = m.actions || [];
+    document.getElementById('wsIcon').textContent = (m.workspace && m.workspace.icon) || '🌈';
+    document.getElementById('wsName').textContent = (m.workspace && m.workspace.name) || '工作区';
+    document.getElementById('wsDesc').textContent =
+      ((m.workspace && m.workspace.description) || '') +
+      '　权限：' + ((m.permissions || []).join('、') || '—');
+    const b = document.getElementById('bridge');
+    b.textContent = '宿主通道：已连接';
+    b.classList.add('ok');
+    render();
+  } else if (m.type === 'action-started') {
+    running[m.actionId] = 'running';
+    logLine('▶ 宿主已开始执行：' + titleOf(m.actionId), 'dim');
+    render();
+  } else if (m.type === 'output') {
+    String(m.text || '').split('\n').forEach(seg => { if (seg !== '') logLine(seg, m.stream === 'stderr' ? 'err' : ''); });
+  } else if (m.type === 'action-exit') {
+    delete running[m.actionId];
+    const ok = !m.stopped && m.code === 0;
+    actions.forEach(a => { if (a.id === m.actionId) a.last = { state: ok ? 'success' : 'failed' }; });
+    logLine((ok ? '✓ 完成' : (m.stopped ? '■ 已停止' : '✗ 失败（退出码 ' + m.code + '）')) +
+            '　用时 ' + m.duration + 's', ok ? 'ok' : 'err');
+    render();
+  }
+});
+
+function titleOf(id){
+  const a = actions.find(x => x.id === id);
+  return a ? a.title : id;
+}
+
+document.getElementById('clear').onclick = () => { document.getElementById('log').innerHTML = ''; };
+
+// 页面背景随鼠标轻微移动（交互式背景演示）
+window.addEventListener('mousemove', e => {
+  const x = (e.clientX / window.innerWidth - .5) * 24;
+  const y = (e.clientY / window.innerHeight - .5) * 24;
+  document.querySelector('.bg').style.transform = `translate(${x}px, ${y}px)`;
+});
+
+logLine('界面已加载，正在向宿主握手…', 'dim');
+post({ type: 'ready' });      // 告诉宿主：我准备好了，请把工作区信息发给我
+</script>
+</body>
+</html>

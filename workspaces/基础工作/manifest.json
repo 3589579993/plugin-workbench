@@ -1,0 +1,21 @@
+{
+  "name": "基础工作",
+  "icon": "🧰",
+  "description": "日常最基础的操作",
+  "version": "1.0.0",
+  "permissions": ["exec"],
+  "actions": [
+    {
+      "id": "open-computer",
+      "title": "打开计算机",
+      "icon": "🖥",
+      "command": "start shell:MyComputerFolder"
+    },
+    {
+      "id": "claude-code",
+      "title": "启动 Claude Code CLI",
+      "icon": "🤖",
+      "command": "start cmd /k claude"
+    }
+  ]
+}

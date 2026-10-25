@@ -1,0 +1,28 @@
+{
+  "name": "霓虹看板",
+  "icon": "🌈",
+  "description": "演示：内容区完全自定义（自带界面 + 动态交互背景）",
+  "version": "1.0.0",
+  "permissions": ["exec"],
+  "ui": { "entry": "ui/index.html" },
+  "actions": [
+    {
+      "id": "open-computer",
+      "title": "打开计算机",
+      "icon": "🖥",
+      "command": "start shell:MyComputerFolder"
+    },
+    {
+      "id": "claude-code",
+      "title": "启动 Claude Code",
+      "icon": "🤖",
+      "command": "start cmd /k claude"
+    },
+    {
+      "id": "show-time",
+      "title": "看时间",
+      "icon": "🕐",
+      "command": "echo %TIME%"
+    }
+  ]
+}

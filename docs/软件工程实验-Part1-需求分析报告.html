@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>软件工程实践 Part 1 —— 需求分析报告</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --primary:#0052CC; --text:#172B4D; --muted:#6B778C;
+    --accent:#00875A; --line:#E1E4E8; --line-strong:#C9CDD4; --table-hd:#F4F5F7; --warn:#B45309;
+  }
+  body { font-family:PingFang SC, Microsoft YaHei, "Helvetica Neue", Arial, sans-serif;
+    color:var(--text); background:#EAECEF; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .layout { display:flex; max-width:1440px; margin:0 auto; background:#fff; }
+  nav { width:272px; flex:0 0 272px; background:#fff; border-right:1px solid var(--line);
+    padding:28px 14px; position:sticky; top:0; height:100vh; overflow-y:auto; }
+  nav h2 { font-size:14px; font-weight:700; color:var(--primary); margin:6px 8px 16px; letter-spacing:.5px; }
+  nav ul { list-style:none; }
+  nav a { display:block; color:var(--text); text-decoration:none; font-size:13px; line-height:1.5;
+    padding:6px 10px; border-radius:6px; margin:1px 0;
+    transition: background-color .18s ease, color .18s ease; }
+  nav a.toc-lv1 { font-weight:700; color:var(--primary); margin-top:8px; }
+  nav a.toc-lv2 { padding-left:22px; }
+  nav a.toc-lv3 { padding-left:34px; font-size:12px; color:#44546A; }
+  nav a:hover { background:#E9F0FF; color:var(--primary); }
+  nav a.active { background:var(--primary); color:#fff; }
+
+  main { flex:1; padding:44px 56px 72px; min-width:0; }
+  .content { max-width:880px; margin:0 auto; }
+  .content h1 { font-size:28px; font-weight:700; line-height:1.4; color:var(--text);
+    margin-bottom:24px; padding-bottom:16px; border-bottom:2px solid var(--primary); scroll-margin-top:20px; }
+  .content h2 { font-size:22px; font-weight:600; line-height:1.4; color:var(--primary);
+    margin:24px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line); scroll-margin-top:20px; }
+  .content h3 { font-size:18px; font-weight:600; line-height:1.5; color:var(--text);
+    margin:16px 0 10px; padding-left:12px; border-left:3px solid var(--primary); scroll-margin-top:20px; }
+  .content p { font-size:15px; line-height:1.8; margin:8px 0; text-align:justify; }
+  .content ul, .content ol { margin:8px 0; padding-left:24px; }
+  .content li { font-size:15px; line-height:1.8; margin-bottom:4px; }
+  .content li::marker { color:var(--primary); }
+  .content strong { font-weight:700; }
+  /* 颜色（2026-09-24 最终口径）：翻译正文**全部黑色**，不再根据原文/不再用颜色做任何区分。
+     {{…}} / {{b|…}} / {{y|…}} / [[…]] 的**解析机制保留**（标记会被吃掉、不留字面量），
+     但一律渲染成继承正文颜色（= 黑色）、无底色 —— 即"标记存在但不上色"。 */
+  .content .ins, .content .ins strong, .content .ins code,
+  .content .blu, .content .blu strong, .content .blu code,
+  .content .hlr, .content .hlr strong, .content .hlr code { color:inherit; }
+  .content .ins code, .content .blu code, .content .hlr code { background:#F2F3F5; }
+  .content .yel { background:transparent; }
+  .content blockquote { border-left:3px solid var(--primary); background:#F4F6FA; padding:10px 16px;
+    margin:12px 0; color:var(--muted); font-size:14px; line-height:1.6; border-radius:0 6px 6px 0; }
+  .content blockquote p { color:var(--muted); font-size:14px; }
+  /* 行内代码：DSH 风格圆角小标签（灰底、正文色、等宽、紧凑） */
+  .content :not(pre) > code { background:#F2F3F5; color:inherit; padding:0 5px; border-radius:6px;
+    font-family:"SF Mono", Consolas, monospace; font-size:.875em; }
+  .content pre { background:#F7F8FA; border:1px solid var(--line); padding:14px 16px; border-radius:6px; overflow-x:auto; margin:12px 0; }
+  .content pre code { background:none; color:var(--text); padding:0; }
+  /* 表格：DSH「方式1（tableFill）」外观——撑满宽度、表头无底色、细横线、行更舒展、首列贴齐正文 */
+  .content table { border-collapse:collapse; width:100%; max-width:none; margin:8px 0 20px; font-size:14px; }
+  .content th { text-align:start; padding:10px 16px; background:none; color:var(--text); font-weight:700;
+    border-bottom:1px solid var(--line-strong); border-top:none; }
+  .content td { padding:10px 16px; border-bottom:1px solid var(--line); color:var(--text); }
+  .content th:first-child, .content td:first-child { padding-left:0; }
+  .content td:last-child { padding-right:0; }
+  .content table code { font-size:13px; }
+  .content td, .content th { border-left:none; border-right:none; }
+  .content img { max-width:100%; height:auto; border:1px solid var(--line); border-radius:4px; margin:12px 0; display:block; }
+  /* 并排图：水平排列、等宽、填满整行（对齐 PDF 左右并排布局）。
+     contain + center：保持各图原始比例完整显示、垂直居中，不裁剪不变形。 */
+  .content .img-row { display:flex; gap:16px; align-items:center; margin:12px 0; flex-wrap:wrap; }
+  .content .img-row img { flex:1 1 0; min-width:0; width:100%; margin:0; height:auto; object-fit:contain; }
+  /* 笔记块：可点击展开/收起，视觉上区别于正文（记在正文下方）。 */
+  .content details.note { background:#FFFDF5; border:1px solid #E6D9A8; border-left:4px solid #B45309;
+    border-radius:8px; padding:0 16px; margin:16px 0; }
+  .content details.note summary { cursor:pointer; padding:12px 2px; list-style:none; user-select:none; }
+  .content details.note summary::-webkit-details-marker { display:none; }
+  .content details.note summary::before { content:"▸ "; color:var(--warn); }
+  .content details.note[open] summary::before { content:"▾ "; }
+  .content details.note .note-tag { display:inline-block; background:#B45309; color:#fff; font-size:11px;
+    font-weight:700; padding:1px 8px; border-radius:10px; margin-right:8px; }
+  .content details.note .note-title { font-weight:700; color:#7A3E00; font-size:14px; }
+  .content details.note .note-body { border-top:1px dashed #E6D9A8; padding:10px 2px 14px; }
+  .content details.note .note-body p { color:var(--text); font-size:14px; }
+  .content details.note .note-body ul, .content details.note .note-body ol { margin:6px 0 6px 22px; }
+  .content details.note .note-body li { font-size:14px; }
+  /* 两列布局：左列正文、右列笔记 */
+  .content .two-col { display:flex; gap:24px; align-items:flex-start; margin:16px 0; }
+  .content .two-col .col-main { flex:1 1 auto; min-width:0; }
+  .content .two-col .col-note { flex:0 0 280px; min-width:0; }
+  .content .two-col .col-note details.note { width:100%; margin:0; }
+  @media (max-width:900px) { .content .two-col { flex-direction:column; } .content .two-col .col-note { flex:none; width:100%; } }
+  .content hr { border:none; border-top:1px solid var(--line); margin:28px 0; }
+  @media (max-width:900px) { nav { display:none; } main { padding:28px 20px 64px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <nav><h2>📚 目录</h2><ul><li><a href="#软件工程实践-Part-1-需求分析报告" class="toc-lv1">软件工程实践 Part 1 —— 需求分析报告</a></li><li><a href="#Task-1-确认项目题目与类型-Verify-the-topic-title-of-the-software-project" class="toc-lv2">Task 1：确认项目题目与类型（Verify the topic/title of the software project）</a></li><li><a href="#Task-2-定义客户的问题与项目范围-Define-the-customer-s-problem-and-the-scope" class="toc-lv2">Task 2：定义客户的问题与项目范围（Define the customer's problem and the scope）</a></li><li><a href="#2-1-客户的问题-Customer-s-Problem" class="toc-lv3">2.1 客户的问题（Customer's Problem）</a></li><li><a href="#2-2-项目范围-Scope-of-the-Project" class="toc-lv3">2.2 项目范围（Scope of the Project）</a></li><li><a href="#Task-3-描述项目背景-Describe-the-background" class="toc-lv2">Task 3：描述项目背景（Describe the background）</a></li><li><a href="#3-1-领域背景" class="toc-lv3">3.1 领域背景</a></li><li><a href="#3-2-现有方案及其不足-Background-Prior-Art" class="toc-lv3">3.2 现有方案及其不足（Background / Prior Art）</a></li><li><a href="#3-3-机会点-Gap" class="toc-lv3">3.3 机会点（Gap）</a></li><li><a href="#Task-4-功能需求与非功能需求-Functional-and-Non-functional-Requirements" class="toc-lv2">Task 4：功能需求与非功能需求（Functional and Non-functional Requirements）</a></li><li><a href="#4-1-功能需求-Functional-Requirements" class="toc-lv3">4.1 功能需求（Functional Requirements）</a></li><li><a href="#4-2-非功能需求-Non-functional-Requirements" class="toc-lv3">4.2 非功能需求（Non-functional Requirements）</a></li><li><a href="#4-3-需求优先级-建议" class="toc-lv3">4.3 需求优先级（建议）</a></li><li><a href="#Task-5-用例图与用例详述-Draw-the-use-case-diagram-and-describe-it-in-detail" class="toc-lv2">Task 5：用例图与用例详述（Draw the use-case diagram and describe it in detail）</a></li><li><a href="#5-1-参与者-Actors" class="toc-lv3">5.1 参与者（Actors）</a></li><li><a href="#5-2-用例图-Use-case-Diagram" class="toc-lv3">5.2 用例图（Use-case Diagram）</a></li><li><a href="#5-3-用例一览-简要描述" class="toc-lv3">5.3 用例一览（简要描述）</a></li><li><a href="#5-4-用例详述一-UC-2-执行动作-核心用例" class="toc-lv3">5.4 用例详述一：UC-2 执行动作（核心用例）</a></li><li><a href="#5-5-用例详述二-UC-1-导入工作区-安全相关用例" class="toc-lv3">5.5 用例详述二：UC-1 导入工作区（安全相关用例）</a></li><li><a href="#Task-6-分析需求所用的方法-Describe-which-methods-were-used-to-analyze-the-requirements" class="toc-lv2">Task 6：分析需求所用的方法（Describe which methods were used to analyze the requirements）</a></li><li><a href="#Task-7-收集与分析需求所用的技术-Describe-the-technologies-to-collect-and-analyze-requirements" class="toc-lv2">Task 7：收集与分析需求所用的技术（Describe the technologies to collect and analyze requirements）</a></li><li><a href="#7-1-收集需求的技术-Technologies-to-Collect-Requirements" class="toc-lv3">7.1 收集需求的技术（Technologies to Collect Requirements）</a></li><li><a href="#7-2-分析需求的技术-Technologies-to-Analyze-Requirements" class="toc-lv3">7.2 分析需求的技术（Technologies to Analyze Requirements）</a></li><li><a href="#附录-术语表" class="toc-lv2">附录：术语表</a></li><li><a href="#附录-报告与项目现状的对应" class="toc-lv2">附录：报告与项目现状的对应</a></li></ul></nav>
+  <main><article class="content"><h1 id="软件工程实践-Part-1-需求分析报告">软件工程实践 Part 1 —— 需求分析报告</h1>
+<blockquote>
+<p><strong>课程</strong>：软件工程实践（Software Engineering Practices）· Part 1
+<strong>项目</strong>：可插件化工作台（Plugin Workbench）
+<strong>组员 / 学号</strong>：（待填）
+<strong>日期</strong>：（待填）</p>
+</blockquote>
+<hr />
+<h2 id="Task-1-确认项目题目与类型-Verify-the-topic-title-of-the-software-project">Task 1：确认项目题目与类型（Verify the topic/title of the software project）</h2>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>项目标题（中文）</strong></td>
+<td><strong>可插件化工作台</strong></td>
+</tr>
+<tr>
+<td><strong>Project Title (English)</strong></td>
+<td><strong>Plugin Workbench</strong></td>
+</tr>
+<tr>
+<td><strong>项目类型</strong></td>
+<td><strong>System</strong>（软件系统）</td>
+</tr>
+<tr>
+<td><strong>所属领域</strong></td>
+<td>开发者工具 / 自动化工具（Developer Tools / Automation）</td>
+</tr>
+<tr>
+<td><strong>交付形态</strong></td>
+<td>Windows 桌面软件（Electron）+ 自定义数据格式「工作区包」</td>
+</tr>
+</tbody>
+</table>
+<p><strong>一句话描述</strong></p>
+<blockquote>
+<p>一个<strong>可导入、可自定义的桌面工作台</strong>：用户导入一份「<strong>工作区包（Workspace Package）</strong>」，工作台就长出由该工作区定义的<strong>按钮</strong>；点击按钮即<strong>在本机执行对应脚本 / 命令</strong>，输出实时显示在工作台内；工作区还可<strong>打包分享</strong>给他人，对方导入后立刻获得同样功能。</p>
+</blockquote>
+<p><strong>术语说明（题目里的"插件"指什么）</strong></p>
+<blockquote>
+<p>本项目的"插件"以「<strong>工作区包</strong>（Workspace Package）」为形态：一个文件夹 + <code>manifest.json</code>（声明名称、图标与动作列表）。
+<strong>插件 = 形态，工作区 = 实例</strong>，二者指同一件事。"可插件化"指的是：<strong>工作台的功能可由外部数据定义并装载，无需修改工作台自身代码</strong>。</p>
+</blockquote>
+<p><strong>用户定位（谁写、谁用）</strong></p>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>是谁</th>
+<th>是否需要会写命令</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>工作区作者</strong>（第一版的目标用户）</td>
+<td>编写工作区包的人</td>
+<td><strong>需要</strong>——当前版本的内容由他们提供</td>
+</tr>
+<tr>
+<td><strong>终端使用者</strong>（产品的最终方向）</td>
+<td>导入工作区、点击按钮的人</td>
+<td><strong>不需要</strong>——只需导入与点击</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>因此，"面向开发者"说的是<strong>供给端</strong>（内容从哪来），"面向所有人"说的是<strong>使用端</strong>（导入即用，与专业无关）。详见 Task 2。</p>
+</blockquote>
+<p><strong>为什么是 System（判断依据）</strong></p>
+<p>结论：本项目产出<strong>可运行、可用的软件系统</strong>（界面、执行引擎、进程间通信、安全边界、自定义数据格式均已落地），因此在 Research / System / Games 三类中属于 <strong>System</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>特征</th>
+<th>本项目是否符合</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Research（研究类）</td>
+<td>产出为研究问题、方法、实验与论证（论文式成果）</td>
+<td>❌ 本项目产出是<strong>可运行的软件</strong></td>
+</tr>
+<tr>
+<td>Games（游戏类）</td>
+<td>核心为可玩性与游戏机制</td>
+<td>❌ 本项目是工具型生产力软件，无游戏性</td>
+</tr>
+<tr>
+<td><strong>System（系统类）</strong></td>
+<td>产出为<strong>可运行、可用的软件系统</strong></td>
+<td>✅ 已具备完整系统要素：界面、执行引擎、进程间通信、安全边界、自定义数据格式</td>
+</tr>
+</tbody>
+</table>
+<p><strong>补充</strong>：本项目属于<strong>平台型应用软件（Platform-type Application Software）</strong>——它不只自身提供功能，还能承载<strong>他人编写的工作区（插件）</strong>，因此是"平台"而非单纯的"工具"。</p>
+<hr />
+<h2 id="Task-2-定义客户的问题与项目范围-Define-the-customer-s-problem-and-the-scope">Task 2：定义客户的问题与项目范围（Define the customer's problem and the scope）</h2>
+<h3 id="2-1-客户的问题-Customer-s-Problem">2.1 客户的问题（Customer's Problem）</h3>
+<p><strong>目标客户</strong>：以<strong>开发者 / 技术用户</strong>为第一目标用户（后续扩展到普通办公用户）。</p>
+<p><strong>现状与痛点</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>痛点</th>
+<th>具体表现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1</td>
+<td><strong>日常操作入口分散</strong></td>
+<td>常用操作散落为桌面快捷方式、<code>.bat</code> 脚本、命令行命令；每次都要"找文件、记路径、敲命令"</td>
+</tr>
+<tr>
+<td>P2</td>
+<td><strong>命令与路径需要记忆</strong></td>
+<td>如把课件 Markdown 转 HTML，要敲一长串路径与参数，容易记错、反复复制粘贴</td>
+</tr>
+<tr>
+<td>P3</td>
+<td><strong>环境无法迁移</strong></td>
+<td>换电脑或重装系统后，整套个人工作流需要重建</td>
+</tr>
+<tr>
+<td>P4</td>
+<td><strong>工作流无法分享</strong></td>
+<td>想把"我的一套日常操作"交给同事或同学，只能口头讲解或发送一堆零散文件</td>
+</tr>
+<tr>
+<td>P5</td>
+<td><strong>命令行门槛</strong></td>
+<td>非技术用户不会写命令，只能依赖图形界面，但图形界面又无法自定义</td>
+</tr>
+<tr>
+<td>P6</td>
+<td><strong>执行过程不可见</strong></td>
+<td>直接双击脚本时会弹黑窗一闪而过，看不到输出、看不到成功与否</td>
+</tr>
+</tbody>
+</table>
+<p><strong>问题陈述（Problem Statement）</strong></p>
+<blockquote>
+<p>技术用户的日常操作以"脚本 / 命令"形式存在，但这些操作<strong>缺乏统一入口、缺乏执行反馈、无法成套迁移与分享</strong>；而现有图形化工具又<strong>无法让用户自定义其功能</strong>。因此需要一个<strong>可由用户自行定义、可一键执行、且能打包分享</strong>的工作台。</p>
+</blockquote>
+<h3 id="2-2-项目范围-Scope-of-the-Project">2.2 项目范围（Scope of the Project）</h3>
+<p><strong>范围内（In Scope，第一阶段）</strong></p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S1</td>
+<td><strong>工作区包格式</strong>：以文件夹（内含 <code>manifest.json</code>）定义工作区；声明名称、图标、说明、权限与动作列表</td>
+</tr>
+<tr>
+<td>S2</td>
+<td><strong>工作区装载</strong>：扫描工作区目录、列出已安装工作区、支持刷新</td>
+</tr>
+<tr>
+<td>S3</td>
+<td><strong>内容区渲染</strong>：按清单自动渲染动作按钮（图标、名称、将执行的命令、运行状态）</td>
+</tr>
+<tr>
+<td>S4</td>
+<td><strong>真实执行</strong>：点击按钮在<strong>本机</strong>执行对应命令，支持指定工作目录</td>
+</tr>
+<tr>
+<td>S5</td>
+<td><strong>输出回显</strong>：标准输出 / 错误输出<strong>实时流式</strong>显示，带时间戳，错误高亮</td>
+</tr>
+<tr>
+<td>S6</td>
+<td><strong>执行控制</strong>：单个停止与全部停止（结束整棵进程树）</td>
+</tr>
+<tr>
+<td>S7</td>
+<td><strong>导入 / 导出 / 卸载</strong>：导入工作区包前<strong>列出该包将执行的全部命令供用户确认</strong></td>
+</tr>
+<tr>
+<td>S8</td>
+<td><strong>界面外壳</strong>：无边框窗口、可拖动分界线调整面板尺寸、按视觉规范统一风格</td>
+</tr>
+</tbody>
+</table>
+<p><strong>范围外（Out of Scope，本阶段明确不做）</strong></p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>不做的事</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>N1</td>
+<td>工作区市场 / 云同步 / 账号体系</td>
+<td>依赖服务端与运营，属后续阶段</td>
+</tr>
+<tr>
+<td>N2</td>
+<td>图形化工作区编辑器（拖拽建按钮）</td>
+<td>面向大众用户的功能，第二阶段再做</td>
+</tr>
+<tr>
+<td>N3</td>
+<td>多步骤流水线、定时触发、远程执行</td>
+<td>超出"本机一键执行"的核心价值</td>
+</tr>
+<tr>
+<td>N4</td>
+<td>插件自带自定义界面（沙箱 iframe）</td>
+<td>属第三阶段，且需先完成权限模型</td>
+</tr>
+<tr>
+<td>N5</td>
+<td>macOS / Linux 打包</td>
+<td>第一版聚焦 Windows，跨平台留待后续</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="Task-3-描述项目背景-Describe-the-background">Task 3：描述项目背景（Describe the background）</h2>
+<h3 id="3-1-领域背景">3.1 领域背景</h3>
+<ul>
+<li><strong>自动化与脚本化已成为技术工作者的日常</strong>：批处理脚本（<code>.bat</code>）、PowerShell（<code>.ps1</code>）、Shell（<code>.sh</code>）、Python 脚本、<code>npm scripts</code> 等被广泛用于启动服务、生成产物、部署与日常维护。</li>
+<li><strong>"界面"与"权限"曾是互斥的</strong>：网页（浏览器沙箱）无法执行本机命令，而传统桌面程序界面开发成本高。<strong>Electron 类技术</strong>（以 VS Code 为代表）让"用网页技术画界面 + 拥有完整本机权限"成为成熟方案，为本项目提供了技术可行性。</li>
+<li><strong>打包与分发成本大幅降低</strong>：以文件夹 / 压缩包形式定义与分发数据（如 <code>.wsp</code> 包），无需应用商店或安装程序即可完成"能力"的传递。</li>
+</ul>
+<h3 id="3-2-现有方案及其不足-Background-Prior-Art">3.2 现有方案及其不足（Background / Prior Art）</h3>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>代表</th>
+<th>优势</th>
+<th>不足</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>手动操作</td>
+<td>桌面快捷方式、开始菜单</td>
+<td>简单直接</td>
+<td>无统一入口、无执行反馈、不可分享</td>
+</tr>
+<tr>
+<td>脚本文件</td>
+<td><code>.bat</code> / <code>.ps1</code> / <code>.sh</code></td>
+<td>灵活、强大</td>
+<td>要记路径与命令；散落各处；无法成套分享</td>
+</tr>
+<tr>
+<td>任务运行器</td>
+<td>Make、just、Taskfile、npm scripts</td>
+<td>声明式、可版本管理</td>
+<td>无图形界面、无分享生态、面向项目而非个人工作台</td>
+</tr>
+<tr>
+<td>命令启动器</td>
+<td>Raycast、Alfred、PowerToys Run</td>
+<td>唤出快、可自定义命令</td>
+<td>缺少"可导入的工作区"这一<strong>成套能力单元</strong></td>
+</tr>
+<tr>
+<td>可编程按钮面板</td>
+<td>Elgato Stream Deck、AutoHotkey、Keyboard Maestro</td>
+<td>按钮自定义能力强</td>
+<td>绑定硬件或特定平台，配置<strong>无法跨人分享</strong></td>
+</tr>
+<tr>
+<td>编辑器扩展</td>
+<td>VS Code tasks / extensions</td>
+<td>能力强、生态好</td>
+<td><strong>被困在编辑器内部</strong>，无法作为独立工作台</td>
+</tr>
+<tr>
+<td>本地自动化平台</td>
+<td>Home Assistant、n8n、Node-RED</td>
+<td>插件化与流程编排成熟</td>
+<td>面向 IoT / 数据流，<strong>不是"本机脚本启动台"</strong></td>
+</tr>
+<tr>
+<td>脚本合集网站</td>
+<td>各类脚本分享站</td>
+<td>资源多</td>
+<td><strong>只收集、不执行、不可定制</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-3-机会点-Gap">3.3 机会点（Gap）</h3>
+<blockquote>
+<p>上述方案<strong>各自解决了问题的一部分，但没有任何一个把下面三件事合在一起</strong>：
+① <strong>可导入的工作区定义</strong>（成套能力以数据形式分发）
+② <strong>一键执行本机命令的图形界面</strong>（有反馈、有状态）
+③ <strong>可分享的工作区生态</strong>（导入即得功能）</p>
+</blockquote>
+<p><strong>本项目的定位正是这个交叉点</strong>——把"个人脚本"升级为"可分享的能力包（工作区包）"。</p>
+<hr />
+<h2 id="Task-4-功能需求与非功能需求-Functional-and-Non-functional-Requirements">Task 4：功能需求与非功能需求（Functional and Non-functional Requirements）</h2>
+<h3 id="4-1-功能需求-Functional-Requirements">4.1 功能需求（Functional Requirements）</h3>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>功能</th>
+<th>说明</th>
+<th>验收标准（可验证）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>FR-1</strong></td>
+<td>工作区装载</td>
+<td>启动时扫描工作区目录，读取并校验每个工作区包的 <code>manifest.json</code></td>
+<td>目录中新增一个合法工作区包后，点「刷新」即可出现在列表中，无需重启</td>
+</tr>
+<tr>
+<td><strong>FR-2</strong></td>
+<td>动作渲染</td>
+<td>按清单渲染动作卡片：图标、名称、<strong>将执行的命令</strong>、状态徽章</td>
+<td>卡片上能看到该动作的完整命令原文</td>
+</tr>
+<tr>
+<td><strong>FR-3</strong></td>
+<td>动作执行</td>
+<td>点击卡片，在<strong>本机</strong>执行该动作声明的命令，可指定工作目录</td>
+<td>执行后系统确实产生对应效果（如打开窗口、生成文件）</td>
+</tr>
+<tr>
+<td><strong>FR-4</strong></td>
+<td>输出回显</td>
+<td>实时（流式）显示标准输出与错误输出，带时间戳，错误以警示色区分</td>
+<td>长耗时命令执行期间，输出区持续滚动显示新内容</td>
+</tr>
+<tr>
+<td><strong>FR-5</strong></td>
+<td>状态管理</td>
+<td>每个动作显示状态：就绪 / 运行中 / 成功 / 失败，并保留上次用时</td>
+<td>执行结束后卡片状态与用时正确更新</td>
+</tr>
+<tr>
+<td><strong>FR-6</strong></td>
+<td>停止执行</td>
+<td>支持停止单个正在执行的动作，以及「全部停止」</td>
+<td>停止后进程（含子进程）被结束，状态标记为已停止</td>
+</tr>
+<tr>
+<td><strong>FR-7</strong></td>
+<td>导入工作区包</td>
+<td>选择工作区文件夹 → 校验清单 → <strong>列出该包将执行的全部命令供用户确认</strong> → 安装</td>
+<td>导入过程中用户能看到每一条将被执行的命令；取消则不安装</td>
+</tr>
+<tr>
+<td><strong>FR-8</strong></td>
+<td>卸载工作区</td>
+<td>从列表中移除已导入的工作区</td>
+<td>卸载后该工作区不再出现在列表，且不再参与扫描</td>
+</tr>
+<tr>
+<td><strong>FR-9</strong></td>
+<td>导出工作区包</td>
+<td>将当前工作区导出为一份工作区包（生成 <code>manifest.json</code>）</td>
+<td>导出目录内生成合法的 <code>manifest.json</code>，可被再次导入</td>
+</tr>
+<tr>
+<td><strong>FR-10</strong></td>
+<td>刷新列表</td>
+<td>重新扫描工作区目录，热加载新增/移除的工作区</td>
+<td>点击后列表立即更新，并在输出区提示工作区数量</td>
+</tr>
+<tr>
+<td><strong>FR-11</strong></td>
+<td>面板尺寸调整</td>
+<td>支持拖动分界线调整侧栏宽度与面板高度，并记忆尺寸</td>
+<td>关闭软件重新打开后，尺寸保持上次调整的结果</td>
+</tr>
+<tr>
+<td><strong>FR-12</strong></td>
+<td>窗口外壳控制</td>
+<td>无边框窗口：自绘最小化 / 最大化 / 关闭按钮，顶栏可拖动，双击顶栏最大化/还原</td>
+<td>各按钮与拖动行为符合 Windows 常规习惯</td>
+</tr>
+<tr>
+<td><strong>FR-13</strong></td>
+<td>权限声明与展示</td>
+<td>工作区包在清单中声明所需能力（当前为 <code>exec</code>），界面展示</td>
+<td>内容区标题栏可见该工作区的权限列表</td>
+</tr>
+</tbody>
+</table>
+<h3 id="4-2-非功能需求-Non-functional-Requirements">4.2 非功能需求（Non-functional Requirements）</h3>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>类别</th>
+<th>需求</th>
+<th>可验证标准</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>NFR-1</strong></td>
+<td><strong>安全</strong></td>
+<td>界面进程不得拥有本机权限；所有命令执行必须经主进程受控接口</td>
+<td>渲染进程启用 <code>sandbox</code>、<code>contextIsolation</code>，关闭 <code>nodeIntegration</code>；界面无任何直接执行能力</td>
+</tr>
+<tr>
+<td><strong>NFR-2</strong></td>
+<td><strong>安全</strong></td>
+<td>用户在导入前必须能看到该工作区将执行的全部命令，并显式确认</td>
+<td>导入流程中存在"命令清单确认"步骤，未确认无法安装</td>
+</tr>
+<tr>
+<td><strong>NFR-3</strong></td>
+<td><strong>安全</strong></td>
+<td>卡片上必须展示"将执行的命令"，使执行内容对用户透明</td>
+<td>每张动作卡片均包含命令原文</td>
+</tr>
+<tr>
+<td><strong>NFR-4</strong></td>
+<td><strong>可用性</strong></td>
+<td>新用户可在 <strong>3 步内</strong>完成"导入工作区 → 执行动作"</td>
+<td>空状态下界面给出三步引导文案</td>
+</tr>
+<tr>
+<td><strong>NFR-5</strong></td>
+<td><strong>可用性</strong></td>
+<td>失败信息应使用中文可读描述，而非原始错误码</td>
+<td>命令不存在、路径错误等场景给出中文提示</td>
+</tr>
+<tr>
+<td><strong>NFR-6</strong></td>
+<td><strong>性能</strong></td>
+<td>界面交互响应时间 &lt; 200 ms；命令输出回显延迟 &lt; 500 ms</td>
+<td>点击卡片后状态立即变为"运行中"；输出接近实时</td>
+</tr>
+<tr>
+<td><strong>NFR-7</strong></td>
+<td><strong>可靠性</strong></td>
+<td>单个命令失败不得导致软件崩溃；同一动作在运行中不得重复启动</td>
+<td>执行失败仅影响该卡片状态；运行中卡片不可再次点击启动</td>
+</tr>
+<tr>
+<td><strong>NFR-8</strong></td>
+<td><strong>可靠性</strong></td>
+<td>关闭软件时应结束所有由它启动的子进程，避免残留</td>
+<td>关闭窗口后无孤立子进程</td>
+</tr>
+<tr>
+<td><strong>NFR-9</strong></td>
+<td><strong>可靠性</strong></td>
+<td>遇到损坏的工作区包（清单缺失或非法）应跳过并提示，而不是整体失效</td>
+<td>放入一个非法包后，其他工作区仍正常工作</td>
+</tr>
+<tr>
+<td><strong>NFR-10</strong></td>
+<td><strong>兼容性</strong></td>
+<td>支持 Windows 10 / 11；兼容中文路径与含特殊字符（如 <code>&amp;</code>）的路径；输出采用 UTF-8</td>
+<td>在含 <code>&amp;</code> 的目录路径下执行命令可正常完成</td>
+</tr>
+<tr>
+<td><strong>NFR-11</strong></td>
+<td><strong>可维护性</strong></td>
+<td>采用分层结构：界面层（渲染进程）/ 安全桥（preload）/ 执行层（主进程）</td>
+<td>三层职责清晰，界面层不含任何执行逻辑</td>
+</tr>
+<tr>
+<td><strong>NFR-12</strong></td>
+<td><strong>可扩展性</strong></td>
+<td>数据格式（工作区清单）须为纯数据，并为后续能力预留字段</td>
+<td>清单已预留 <code>mode</code>（一次性任务 / 长驻服务）与 <code>permissions</code> 字段</td>
+</tr>
+<tr>
+<td><strong>NFR-13</strong></td>
+<td><strong>视觉一致性</strong></td>
+<td>界面遵循《雪艺软件办公文档视觉设计规范 V1.2》：以黑白灰构建框架，品牌色（#0052CC）仅用于点睛；正文用深空灰（#172B4D）替代纯黑；成功/警示分别用 #00875A / #DE350B</td>
+<td>界面配色与字号层级符合规范；不加装饰性元素</td>
+</tr>
+</tbody>
+</table>
+<h3 id="4-3-需求优先级-建议">4.3 需求优先级（建议）</h3>
+<table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>需求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>必须有（Must）</strong></td>
+<td>FR-1 ~ FR-10、NFR-1、NFR-2、NFR-4、NFR-7、NFR-8</td>
+</tr>
+<tr>
+<td><strong>应该有（Should）</strong></td>
+<td>FR-11、FR-12、FR-13、NFR-3、NFR-5、NFR-6、NFR-10</td>
+</tr>
+<tr>
+<td><strong>可以有（Could）</strong></td>
+<td>NFR-9、NFR-12、NFR-13（视觉打磨）</td>
+</tr>
+<tr>
+<td><strong>本阶段不做（Won't）</strong></td>
+<td>见 Task 2 的「范围外」N1 ~ N5</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="Task-5-用例图与用例详述-Draw-the-use-case-diagram-and-describe-it-in-detail">Task 5：用例图与用例详述（Draw the use-case diagram and describe it in detail）</h2>
+<h3 id="5-1-参与者-Actors">5.1 参与者（Actors）</h3>
+<table>
+<thead>
+<tr>
+<th>参与者</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>终端用户（End User）</strong></td>
+<td>使用工作台执行日常操作的人（第一目标用户为开发者/技术用户）</td>
+</tr>
+<tr>
+<td><strong>工作区作者（Workspace Author）</strong></td>
+<td>编写工作区包（<code>manifest.json</code>）的人；可与终端用户为同一人</td>
+</tr>
+<tr>
+<td><strong>操作系统 / 外部程序</strong>（次要参与者）</td>
+<td>承接命令执行的系统环境，以及被启动的外部程序（如 Claude Code、资源管理器）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5-2-用例图-Use-case-Diagram">5.2 用例图（Use-case Diagram）</h3>
+<blockquote>
+<p>说明：采用 Mermaid 绘制（以「圆角矩形=用例、矩形=参与者」近似 UML 用例图；虚线箭头标注 <code>«include»</code> / <code>«extend»</code> 关系）。</p>
+</blockquote>
+<p><div class="mermaid">flowchart LR
+  U["终端用户"]
+  W["工作区作者"]
+  OS["操作系统 / 外部程序"]
+
+  subgraph SYS["可插件化工作台"]
+    UC1(["导入工作区"])
+    UC2(["执行动作"])
+    UC3(["停止动作"])
+    UC4(["查看执行输出"])
+    UC5(["创建工作区"])
+    UC6(["导出工作区"])
+    UC7(["卸载工作区"])
+    UC8(["刷新工作区列表"])
+    UC9(["调整面板布局"])
+  end
+
+  U --- UC2
+  U --- UC1
+  U --- UC7
+  U --- UC8
+  U --- UC9
+  W --- UC5
+  W --- UC6
+  UC1 -.->|"«include»"| UC4
+  UC2 -.->|"«include»"| UC4
+  UC3 -.->|"«extend»"| UC2
+  UC5 -.->|"«include»"| UC1
+  UC2 --- OS</div></p>
+<p><strong>关系说明</strong></p>
+<table>
+<thead>
+<tr>
+<th>关系</th>
+<th>用例 A</th>
+<th>用例 B</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>«include»</td>
+<td>执行动作</td>
+<td>查看执行输出</td>
+<td>执行动作<strong>必然包含</strong>输出显示（无输出则动作不可用）</td>
+</tr>
+<tr>
+<td>«include»</td>
+<td>导入工作区</td>
+<td>查看执行输出</td>
+<td>导入过程的结果必须在输出区可见</td>
+</tr>
+<tr>
+<td>«extend»</td>
+<td>停止动作</td>
+<td>执行动作</td>
+<td>停止是<strong>可选/异常</strong>行为：仅当动作正在运行时才发生</td>
+</tr>
+<tr>
+<td>«include»</td>
+<td>创建工作区</td>
+<td>导入工作区</td>
+<td>新建的工作区必须导入后才生效</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5-3-用例一览-简要描述">5.3 用例一览（简要描述）</h3>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>用例</th>
+<th>参与者</th>
+<th>目标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UC-1</td>
+<td>导入工作区</td>
+<td>终端用户</td>
+<td>装入一份工作区包，获得其功能</td>
+</tr>
+<tr>
+<td>UC-2</td>
+<td>执行动作</td>
+<td>终端用户</td>
+<td>一键执行工作区中的某个命令</td>
+</tr>
+<tr>
+<td>UC-3</td>
+<td>停止动作</td>
+<td>终端用户</td>
+<td>结束正在运行的命令（含子进程）</td>
+</tr>
+<tr>
+<td>UC-4</td>
+<td>查看执行输出</td>
+<td>终端用户</td>
+<td>观察命令执行过程与结果</td>
+</tr>
+<tr>
+<td>UC-5</td>
+<td>创建工作区</td>
+<td>工作区作者</td>
+<td>编写工作区包（清单 + 命令）</td>
+</tr>
+<tr>
+<td>UC-6</td>
+<td>导出工作区</td>
+<td>工作区作者</td>
+<td>把当前工作区导出为可分享的包</td>
+</tr>
+<tr>
+<td>UC-7</td>
+<td>卸载工作区</td>
+<td>终端用户</td>
+<td>移除不再需要的工作区</td>
+</tr>
+<tr>
+<td>UC-8</td>
+<td>刷新工作区列表</td>
+<td>终端用户</td>
+<td>让新增/删除的工作区立即生效</td>
+</tr>
+<tr>
+<td>UC-9</td>
+<td>调整面板布局</td>
+<td>终端用户</td>
+<td>按习惯调整侧栏宽度与面板高度</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5-4-用例详述一-UC-2-执行动作-核心用例">5.4 用例详述一：UC-2 执行动作（核心用例）</h3>
+<table>
+<thead>
+<tr>
+<th>要素</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. 名称</strong></td>
+<td><strong>执行动作（Run an Action）</strong></td>
+</tr>
+<tr>
+<td><strong>B. 参与者</strong></td>
+<td>终端用户（主）；操作系统 / 外部程序（次）</td>
+</tr>
+<tr>
+<td><strong>C. 目标</strong></td>
+<td>用户一键执行某工作区中预先定义好的命令或脚本，<strong>无需记忆路径与命令</strong></td>
+</tr>
+<tr>
+<td><strong>D. 前置条件</strong></td>
+<td>1) 软件已启动；2) 目标工作区已安装且清单合法；3) 该动作依赖的程序在本机存在</td>
+</tr>
+<tr>
+<td><strong>E. 概要</strong></td>
+<td>用户点击动作卡片，系统检查是否可执行，随后在本机执行对应命令，将输出实时显示在输出区，最终给出成功或失败状态</td>
+</tr>
+<tr>
+<td><strong>F. 相关用例</strong></td>
+<td>«include» 查看执行输出；«extend» 停止动作</td>
+</tr>
+<tr>
+<td><strong>G. 步骤</strong></td>
+<td>见下表（两列格式）</td>
+</tr>
+<tr>
+<td><strong>H. 后置条件</strong></td>
+<td>命令已结束（成功 / 失败 / 被停止）；该卡片显示最近状态与用时；输出区保留完整记录</td>
+</tr>
+</tbody>
+</table>
+<p><strong>G. 步骤（参与者动作 / 系统响应）</strong></p>
+<table>
+<thead>
+<tr>
+<th>参与者动作</th>
+<th>系统响应</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. 用户启动软件并选择目标工作区</td>
+<td>2. 系统在内容区渲染该工作区的动作卡片（含命令预览与状态徽章）</td>
+</tr>
+<tr>
+<td>3. 用户点击目标动作卡片</td>
+<td>4. 系统检查该动作当前是否正在运行；若在运行则不重复启动，并在输出区提示</td>
+</tr>
+<tr>
+<td></td>
+<td>5. 系统在输出区显示动作名称与将执行的命令，将卡片状态置为「运行中」</td>
+</tr>
+<tr>
+<td></td>
+<td>6. 系统在本机执行该命令（Windows 下经命令解释器执行，输出按 UTF-8 解码，工作目录取自清单）</td>
+</tr>
+<tr>
+<td></td>
+<td>7. 系统把标准输出与错误输出<strong>实时</strong>追加到输出区（错误以警示色显示）</td>
+</tr>
+<tr>
+<td>8. 用户观察输出以判断执行情况</td>
+<td>9. 命令结束时，系统记录结束状态（成功 / 退出码）与用时，并把卡片状态更新为「成功」或「失败」</td>
+</tr>
+</tbody>
+</table>
+<p><strong>备选流</strong></p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>触发</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1</td>
+<td>用户在运行中点击「停止」</td>
+<td>系统结束该动作的<strong>整棵进程树</strong>；输出区标注"已停止"；卡片状态记为失败/已停止</td>
+</tr>
+<tr>
+<td>A2</td>
+<td>命令不存在或路径错误</td>
+<td>系统在输出区以警示色显示原始错误，并给出中文提示；卡片状态记为失败</td>
+</tr>
+<tr>
+<td>A3</td>
+<td>命令不退出（长驻进程）</td>
+<td>系统卡片持续显示「运行中」，直至用户点击「停止」</td>
+</tr>
+</tbody>
+</table>
+<h3 id="5-5-用例详述二-UC-1-导入工作区-安全相关用例">5.5 用例详述二：UC-1 导入工作区（安全相关用例）</h3>
+<table>
+<thead>
+<tr>
+<th>要素</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. 名称</strong></td>
+<td><strong>导入工作区（Import a Workspace）</strong></td>
+</tr>
+<tr>
+<td><strong>B. 参与者</strong></td>
+<td>终端用户</td>
+</tr>
+<tr>
+<td><strong>C. 目标</strong></td>
+<td>把一份工作区包装进工作台，从而获得该工作区定义的一组按钮</td>
+</tr>
+<tr>
+<td><strong>D. 前置条件</strong></td>
+<td>1) 软件已启动；2) 用户已获得一个合法的工作区包（文件夹内含 <code>manifest.json</code>）</td>
+</tr>
+<tr>
+<td><strong>E. 概要</strong></td>
+<td>用户选择工作区文件夹，系统读取并校验清单，随后弹出确认窗口<strong>列出该工作区将执行的全部命令</strong>，用户确认后完成安装</td>
+</tr>
+<tr>
+<td><strong>F. 相关用例</strong></td>
+<td>«include» 查看执行输出（结果反馈）；导入后即可使用「执行动作」</td>
+</tr>
+<tr>
+<td><strong>G. 步骤</strong></td>
+<td>见下表（两列格式）</td>
+</tr>
+<tr>
+<td><strong>H. 后置条件</strong></td>
+<td>工作区出现在左栏列表、其动作卡片出现在内容区；导入记录被持久化，下次启动仍存在</td>
+</tr>
+</tbody>
+</table>
+<p><strong>G. 步骤（参与者动作 / 系统响应）</strong></p>
+<table>
+<thead>
+<tr>
+<th>参与者动作</th>
+<th>系统响应</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. 用户点击顶栏「导入工作区」</td>
+<td>2. 系统打开文件夹选择对话框</td>
+</tr>
+<tr>
+<td>3. 用户选择目标工作区文件夹</td>
+<td>4. 系统读取 <code>manifest.json</code>，校验必填字段（<code>name</code>、<code>actions</code>、每项的 <code>title</code> 与 <code>command</code>）</td>
+</tr>
+<tr>
+<td></td>
+<td>5. 若校验失败：系统提示具体原因（如"缺少 name（工作区名称）"）并终止本次导入</td>
+</tr>
+<tr>
+<td></td>
+<td>6. 校验通过：系统弹出确认窗口，显示工作区名称、版本、说明以及<strong>全部待执行命令</strong></td>
+</tr>
+<tr>
+<td>7. 用户核对命令清单</td>
+<td>8. 用户点击「确认导入」</td>
+</tr>
+<tr>
+<td></td>
+<td>9. 系统登记该工作区、持久化导入记录，并刷新左栏列表与内容区</td>
+</tr>
+<tr>
+<td></td>
+<td>10. 系统在输出区提示"已导入工作区：XXX"</td>
+</tr>
+</tbody>
+</table>
+<p><strong>备选流</strong>：用户点击「取消」→ 系统放弃导入，不产生任何变更。</p>
+<hr />
+<h2 id="Task-6-分析需求所用的方法-Describe-which-methods-were-used-to-analyze-the-requirements">Task 6：分析需求所用的方法（Describe which methods were used to analyze the requirements）</h2>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>具体做法</th>
+<th>产生了什么结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>领域分析（Domain Analysis）</strong></td>
+<td>研究"开发者工具 / 自动化"领域中的现有形态（启动器、按钮面板、任务运行器、自动化平台）</td>
+<td>明确本项目的领域位置与差异点（见 Task 3）</td>
+</tr>
+<tr>
+<td><strong>问题定义与范围界定</strong></td>
+<td>把现状痛点写成问题陈述，并逐条划定"做什么 / 不做什么"</td>
+<td>得到 P1~P6 痛点与 N1~N5 范围外清单</td>
+</tr>
+<tr>
+<td><strong>用例分析（Use-case Analysis）</strong></td>
+<td>从"用户想达成什么目标"出发倒推系统职责，而不是从功能清单出发</td>
+<td>得到 UC-1 ~ UC-9 与两条 <code>include</code>、一条 <code>extend</code> 关系</td>
+</tr>
+<tr>
+<td><strong>需求分类</strong></td>
+<td>按功能 / 非功能分类，并对非功能需求细分（安全、可用性、性能、可靠性、兼容性、可维护性、可扩展性）</td>
+<td>得到 FR-1~FR-13、NFR-1~NFR-13</td>
+</tr>
+<tr>
+<td><strong>场景走查（Scenario Walkthrough）</strong></td>
+<td>用真实场景（启动 DSH、生成课件 HTML、打开"此电脑"）在需求上走一遍</td>
+<td>发现"输出可见""需要停止""退出码需可靠"等需求</td>
+</tr>
+<tr>
+<td><strong>原型驱动分析（Prototyping）</strong></td>
+<td>先做可交互界面原型，再演进为可运行的桌面软件，用实物验证需求</td>
+<td>发现并修正多条需求（见下方"原型验证的收获"）</td>
+</tr>
+<tr>
+<td><strong>冲突与依赖分析</strong></td>
+<td>识别互相对立的需求并设计缓解措施</td>
+<td>"能执行任意命令"（灵活性）与"安全"冲突 → 用"命令可见 + 导入确认"缓解</td>
+</tr>
+<tr>
+<td><strong>可验证性检查</strong></td>
+<td>每条非功能需求都补上可判定的标准</td>
+<td>如"输出回显延迟 &lt; 500 ms""关闭软件后无残留子进程"</td>
+</tr>
+<tr>
+<td><strong>与设计决策对齐</strong></td>
+<td>检查需求是否与已定架构决策一致（外壳/内容区边界、能力分层）</td>
+<td>确认界面进程无本机权限（NFR-1）与"外壳不可被插件修改"一致</td>
+</tr>
+</tbody>
+</table>
+<p><strong>原型验证的收获（真实发现，可作为方法论证据）</strong></p>
+<table>
+<thead>
+<tr>
+<th>原型阶段发现</th>
+<th>对需求的影响</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>explorer.exe</code> 打开文件夹成功时仍返回退出码 1</td>
+<td>新增可靠需求：动作状态判断必须可靠，避免误报失败（写入 NFR-7 相关场景）</td>
+</tr>
+<tr>
+<td>交互式命令行程序（如 Claude Code）在"只读输出面板"中无法交互</td>
+<td>明确当前输出区是"只读日志"而非终端；把"内嵌真终端"列为后续需求</td>
+</tr>
+<tr>
+<td>面板尺寸不合适时需要反复改代码</td>
+<td>把"面板可拖动并记忆尺寸"提升为功能需求 FR-11</td>
+</tr>
+<tr>
+<td>导入他人工作区 = 导入可执行内容</td>
+<td>强化安全需求 NFR-2（导入前命令清单确认）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="Task-7-收集与分析需求所用的技术-Describe-the-technologies-to-collect-and-analyze-requirements">Task 7：收集与分析需求所用的技术（Describe the technologies to collect and analyze requirements）</h2>
+<h3 id="7-1-收集需求的技术-Technologies-to-Collect-Requirements">7.1 收集需求的技术（Technologies to Collect Requirements）</h3>
+<table>
+<thead>
+<tr>
+<th>技术</th>
+<th>具体实施</th>
+<th>收集到的信息</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>观察（Observation）</strong></td>
+<td>观察技术用户（含本人与同学）的日常操作：桌面脚本、重复敲命令、路径复制粘贴</td>
+<td>痛点 P1、P2、P6</td>
+</tr>
+<tr>
+<td><strong>访谈（Interviews）</strong></td>
+<td>与同为开发者的同学交流"每天要启动哪些工具、怎么启动、换电脑怎么办"</td>
+<td>痛点 P3、P4</td>
+</tr>
+<tr>
+<td><strong>头脑风暴 / JAD 式讨论</strong></td>
+<td>团队围绕"最痛的一件事是什么"发散并归类，形成机会点</td>
+<td>机会点（Task 3.3 的交叉点）</td>
+</tr>
+<tr>
+<td><strong>原型试用（Prototyping）</strong></td>
+<td>提供可点击原型让用户体验"导入工作区 → 点按钮执行"，收集反馈</td>
+<td>反馈如"要能停止""面板要能调""滚动条太丑"</td>
+</tr>
+<tr>
+<td><strong>竞品与文档研究</strong></td>
+<td>阅读同类工具的公开文档与产品形态（VS Code tasks、Stream Deck、Raycast、n8n 等）</td>
+<td>差异化定位依据；同时确定"不重复造轮子"的边界</td>
+</tr>
+<tr>
+<td><strong>用例工作坊（Use-case Workshop）</strong></td>
+<td>以"用户目标"为单位逐条写下并合并/拆分</td>
+<td>UC-1 ~ UC-9</td>
+</tr>
+</tbody>
+</table>
+<h3 id="7-2-分析需求的技术-Technologies-to-Analyze-Requirements">7.2 分析需求的技术（Technologies to Analyze Requirements）</h3>
+<table>
+<thead>
+<tr>
+<th>技术</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>需求分类与优先级排序</strong>（功能/非功能；Must / Should / Could / Won't）</td>
+<td>确定实现顺序，保证第一阶段聚焦核心价值</td>
+</tr>
+<tr>
+<td><strong>用例建模 + 场景与异常流分析</strong></td>
+<td>从正常流推导异常流（命令不存在、路径含特殊字符、进程不退出），补齐需求边界</td>
+</tr>
+<tr>
+<td><strong>可验证性检查（Verifiable criteria）</strong></td>
+<td>每条非功能需求补上量化或可判定标准，避免"越快越好"这类空话</td>
+</tr>
+<tr>
+<td><strong>一致性检查</strong></td>
+<td>需求 ↔ 架构边界（宿主/插件）↔ 落地顺序（工作区→真实执行→权限→自定义界面）三者对齐</td>
+</tr>
+<tr>
+<td><strong>冲突与权衡分析</strong></td>
+<td>灵活性 vs 安全的冲突，用"透明化 + 确认机制"缓解，而非牺牲任一方</td>
+</tr>
+<tr>
+<td><strong>原型验证（Prototype Validation）</strong></td>
+<td>用可运行实物检验需求可行性与完整性（如以"打开计算机"验证命令执行链路）</td>
+</tr>
+<tr>
+<td><strong>需求可追溯性（Traceability）</strong></td>
+<td>建立"痛点 → 功能需求 → 用例"的对应关系，确保每条需求都有来源、每个痛点都有对策</td>
+</tr>
+</tbody>
+</table>
+<p><strong>可追溯性示例</strong></p>
+<table>
+<thead>
+<tr>
+<th>痛点</th>
+<th>对应功能需求</th>
+<th>对应用例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1 入口分散</td>
+<td>FR-1 工作区装载、FR-2 动作渲染</td>
+<td>UC-1、UC-2</td>
+</tr>
+<tr>
+<td>P2 命令需记忆</td>
+<td>FR-2 命令预览、FR-3 真实执行</td>
+<td>UC-2</td>
+</tr>
+<tr>
+<td>P3 环境无法迁移</td>
+<td>FR-9 导出、FR-7 导入</td>
+<td>UC-1、UC-6</td>
+</tr>
+<tr>
+<td>P4 工作流无法分享</td>
+<td>FR-9 导出工作区包</td>
+<td>UC-6</td>
+</tr>
+<tr>
+<td>P5 命令行门槛</td>
+<td>FR-2 按钮化、FR-12 界面外壳</td>
+<td>UC-2、UC-9</td>
+</tr>
+<tr>
+<td>P6 执行过程不可见</td>
+<td>FR-4 输出回显、FR-5 状态管理</td>
+<td>UC-4</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="附录-术语表">附录：术语表</h2>
+<table>
+<thead>
+<tr>
+<th>术语</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>工作区（Workspace）</strong></td>
+<td>一组动作的集合，对应一个工作场景（如"基础工作"）</td>
+</tr>
+<tr>
+<td><strong>工作区包（Workspace Package）</strong></td>
+<td>以文件夹（或打包后的 <code>.wsp</code>）形式分发的工作区，内含 <code>manifest.json</code></td>
+</tr>
+<tr>
+<td><strong>清单（Manifest）</strong></td>
+<td>工作区包中的 <code>manifest.json</code>，声明名称、图标、说明、权限与动作列表</td>
+</tr>
+<tr>
+<td><strong>动作（Action）</strong></td>
+<td>最小可执行单元，对应界面上的一个按钮</td>
+</tr>
+<tr>
+<td><strong>宿主外壳（Host Shell）</strong></td>
+<td>软件自身固定的界面部分（顶栏、左栏、输出区），插件不可修改</td>
+</tr>
+<tr>
+<td><strong>内容区（Content Region）</strong></td>
+<td>由工作区声明、宿主渲染的区域（动作卡片区）</td>
+</tr>
+<tr>
+<td><strong>执行引擎（Runner）</strong></td>
+<td>主进程中负责真正启动进程、回传输出、结束进程的模块</td>
+</tr>
+<tr>
+<td><strong>权限（Permission）</strong></td>
+<td>工作区声明所需的能力（当前为 <code>exec</code>：执行命令）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="附录-报告与项目现状的对应">附录：报告与项目现状的对应</h2>
+<table>
+<thead>
+<tr>
+<th>需求</th>
+<th>当前实现状态</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FR-1 ~ FR-10</td>
+<td>✅ 已实现（工作区装载、渲染、执行、输出、状态、停止、导入/导出/卸载、刷新）</td>
+</tr>
+<tr>
+<td>FR-11、FR-12</td>
+<td>✅ 已实现（面板拖动与尺寸记忆、无边框窗口自绘按钮）</td>
+</tr>
+<tr>
+<td>FR-13</td>
+<td>🟡 部分实现（清单已支持 <code>permissions</code> 并在界面展示；尚无权限分级与授权流程）</td>
+</tr>
+<tr>
+<td>NFR-1 ~ NFR-3</td>
+<td>🟡 部分（已启用沙箱与上下文隔离、卡片显示命令、导入前确认；审计与白名单未做）</td>
+</tr>
+<tr>
+<td>NFR-4 ~ NFR-13</td>
+<td>🟡 大部分满足，需在后续版本中补充自动化验证</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>说明：本报告中的需求为<strong>完整目标态</strong>，其中部分为第一阶段已交付，部分为后续阶段规划——需求与实现状态分开标注，便于评审。</p>
+</blockquote></article></main>
+</div>
+<script>
+  // --- 收集所有带 id 的标题 + 对应的目录链接 ---
+  const heads = Array.from(document.querySelectorAll('h1[id],h2[id],h3[id]'));
+  const navLinks = Array.from(document.querySelectorAll('nav a'));
+  const map = new Map();
+  heads.forEach(h => {
+    const link = navLinks.find(a => a.getAttribute('href') === '#' + h.id);
+    if (link) map.set(h, link);
+  });
+
+  function setActive(link) {
+    navLinks.forEach(x => x.classList.remove('active'));
+    if (link) link.classList.add('active');
+    // 让当前高亮项始终在左侧导航可见区域内
+    if (link) {
+      const n = document.querySelector('nav');
+      const linkTop = link.offsetTop;
+      if (linkTop < n.scrollTop || linkTop > n.scrollTop + n.clientHeight) {
+        n.scrollTo({ top: linkTop - n.clientHeight / 2, behavior:'smooth' });
+      }
+    }
+  }
+
+  // 点击跳转后“钉住”目标标题，避免平滑滚动途中/结束后高亮被中途章节抢走
+  let pinnedId = null;
+
+  function setActive(link) {
+    navLinks.forEach(x => x.classList.remove('active'));
+    if (link) link.classList.add('active');
+    // 让当前高亮项始终在左侧导航可见区域内
+    if (link) {
+      const n = document.querySelector('nav');
+      const linkTop = link.offsetTop;
+      if (linkTop < n.scrollTop || linkTop > n.scrollTop + n.clientHeight) {
+        n.scrollTo({ top: linkTop - n.clientHeight / 2, behavior:'smooth' });
+      }
+    }
+  }
+
+  // --- 点击目录：平滑滚动到标题，并钉住该标题 ---
+  navLinks.forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) {
+        pinnedId = id;      // 钉住目标标题 *
+        setActive(a);       // 立即高亮目标
+        el.scrollIntoView({ behavior:'smooth', block:'start' });
+      }
+    });
+  });
+
+  // --- 滚动监听：ScrollSpy 高亮当前章节 ---
+  // 按"页块（该标题到下一标题之间）占视口可见高度最多"高亮，即当前主体页。
+  function currentHeading() {
+    const vh = window.innerHeight || 800;
+    let best = heads[0], bestVisible = -1;
+    for (let i = 0; i < heads.length; i++) {
+      const h = heads[i];
+      const top = h.getBoundingClientRect().top;
+      // 该页块底部 = 下一个标题的 top（最后一个到页面底）
+      const next = heads[i + 1];
+      const bottom = next ? next.getBoundingClientRect().top : (top + 1e5);
+      // 页块与视口 [0, vh] 的交集高度
+      const visible = Math.max(0, Math.min(bottom, vh) - Math.max(top, 0));
+      if (visible > bestVisible) { bestVisible = visible; best = h; }
+    }
+    return best;
+  }
+
+  function spy() {
+    const current = currentHeading();
+    // 若正钉住目标（来自点击跳转）：只有当正常跟随算法也“走到”目标标题
+    // 时，才算跳转到位并解除钉住；期间无论方向如何都保持点击时的高亮。
+    if (pinnedId) {
+      if (current.id === pinnedId) {
+        pinnedId = null; // 到位：解除钉住，交还给正常滚动跟随
+      } else {
+        return; // 未到位（向上/向下途中）：保持点击时的高亮，不做切换
+      }
+    }
+    const link = map.get(current);
+    if (link && !link.classList.contains('active')) setActive(link);
+  }
+
+  // 节流：避免滚动事件过于频繁
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      window.requestAnimationFrame(() => { spy(); ticking = false; });
+      ticking = true;
+    }
+  }, { passive:true });
+  window.addEventListener('resize', spy);
+  spy(); // 初始即定位
+
+  // --- Mermaid 思维导图渲染（若页面含 mermaid） ---
+  (function(){
+    if (typeof mermaid === 'undefined') return; // 未引入 mermaid.min.js 则跳过
+    mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+    document.querySelectorAll('.mermaid').forEach(el => {
+      try { mermaid.render('mm' + Math.random().toString(36).slice(2), el.textContent, (svg) => { el.innerHTML = svg; }).catch?.(()=>{}); }
+      catch(e) { console.warn('mermaid render fail', e); }
+    });
+  })();
+</script>
+<script src="mermaid.min.js"></script>
+</body>
+</html>

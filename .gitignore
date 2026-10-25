@@ -1,0 +1,30 @@
+# 依赖（体积大，clone 后自己 npm install）
+node_modules/
+
+# 打包产物
+dist/
+out/
+release/
+build/
+
+# 日志与临时文件
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# 本地环境与密钥
+.env
+.env.*
+*.pem
+*.key
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# 测试与覆盖率
+coverage/
+.nyc_output/

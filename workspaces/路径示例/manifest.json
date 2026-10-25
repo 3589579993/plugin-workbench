@@ -1,0 +1,10 @@
+{
+  "name": "路径示例",
+  "icon": "🧭",
+  "description": "演示命令在哪个目录里跑；也演示「路径由脚本自己弹窗去问」的写法",
+  "actions": [
+    { "title": "我在哪个目录里跑", "icon": "📍", "command": "cd" },
+    { "title": "包里有哪些文件", "icon": "📦", "command": "dir /b" },
+    { "title": "选一个文件夹并列内容", "icon": "🗂️", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"pick-folder.ps1\"" }
+  ]
+}

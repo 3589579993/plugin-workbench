@@ -1,0 +1,32 @@
+{
+  "name": "plugin-workbench",
+  "productName": "可插件化工作台",
+  "version": "0.1.0",
+  "description": "可导入的工作台：用工作区包把任意脚本/命令变成可点击的按钮面板",
+  "main": "main.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  },
+  "build": {
+    "appId": "com.local.workbench",
+    "productName": "可插件化工作台",
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**/*",
+      "renderer/**/*",
+      "workspaces/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  }
+}
