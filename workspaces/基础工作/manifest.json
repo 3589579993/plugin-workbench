@@ -10,12 +10,6 @@
       "title": "打开计算机",
       "icon": "🖥",
       "command": "start shell:MyComputerFolder"
-    },
-    {
-      "id": "claude-code",
-      "title": "启动 Claude Code CLI",
-      "icon": "🤖",
-      "command": "start cmd /k claude"
     }
   ]
 }

@@ -202,7 +202,8 @@ my-app.exe
 │   ├── resolve-run.test.js           ← 单元测试
 │   └── run-in-package.test.js        ← 集成测试（真的起进程跑）
 ├── workspaces\                       ← 内置工作区包
-│   ├── 基础工作\                      ← 打开计算机 / 启动 Claude Code CLI
+│   ├── AI助手\                        ← Claude / DeepSeek / Gemini / 豆包 / ChatGPT / 通义千问
+│   ├── 基础工作\                      ← 打开计算机
 │   ├── 霓虹看板\                      ← 自定义界面（沙箱 iframe）示例
 │   └── 路径示例\                      ← 工作目录规则 + "脚本自己弹窗选路径"示例
 └── README.md

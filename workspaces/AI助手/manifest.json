@@ -1,0 +1,46 @@
+{
+  "id": "ai-assistant",
+  "name": "AI 助手",
+  "icon": "🤖",
+  "description": "常用大模型一键直达：优先启动本机 CLI，没装则打开网页版",
+  "version": "1.0.0",
+  "permissions": ["exec"],
+  "actions": [
+    {
+      "id": "ai-claude",
+      "title": "Claude",
+      "icon": "✳",
+      "command": "node \"open-ai.js\" claude"
+    },
+    {
+      "id": "ai-deepseek",
+      "title": "DeepSeek 深度求索",
+      "icon": "🐋",
+      "command": "node \"open-ai.js\" deepseek"
+    },
+    {
+      "id": "ai-gemini",
+      "title": "Gemini",
+      "icon": "✨",
+      "command": "node \"open-ai.js\" gemini"
+    },
+    {
+      "id": "ai-doubao",
+      "title": "豆包 Doubao",
+      "icon": "🫘",
+      "command": "node \"open-ai.js\" doubao"
+    },
+    {
+      "id": "ai-chatgpt",
+      "title": "ChatGPT / Codex",
+      "icon": "💬",
+      "command": "node \"open-ai.js\" chatgpt"
+    },
+    {
+      "id": "ai-qwen",
+      "title": "通义千问 Qwen",
+      "icon": "☁",
+      "command": "node \"open-ai.js\" qwen"
+    }
+  ]
+}
