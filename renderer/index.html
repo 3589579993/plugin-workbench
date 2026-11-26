@@ -120,6 +120,17 @@
   /* ── 自定义界面宿主（L3）：工作区自带的界面在沙箱 iframe 里跑 ── */
   .plugin-host{height:100%;min-height:0}
   .plugin-host iframe{width:100%;height:100%;border:0;border-radius:4px;display:block;background:#0B0E14}
+  /* ── 内嵌浏览器：学校/企业登录页（Moodle、SSO 等）── */
+  .panel-body.web-mode{overflow:hidden;padding:10px}
+  .web-host{height:100%;min-height:0;display:flex;flex-direction:column;gap:8px}
+  .web-bar{flex:none;display:flex;align-items:center;gap:6px}
+  .web-bar .btn{padding:4px 10px;font-size:12px}
+  .web-url{flex:1;min-width:0;background:var(--soft);border:1px solid var(--line);border-radius:4px;
+    padding:5px 9px;font-family:var(--mono);font-size:11.5px;color:var(--text);outline:none}
+  .web-url:focus{border-color:var(--primary);background:#fff}
+  .web-status{flex:none;font-size:11px;color:var(--muted);min-width:52px;text-align:right}
+  .web-host webview{flex:1;width:100%;min-height:0;border:1px solid var(--line);border-radius:4px;
+    display:flex;background:#fff}
   .ws-meta{font-size:11.5px;color:var(--muted);text-align:right;white-space:pre-line;
     font-family:var(--mono);line-height:1.7;flex:none}     /* 固定两行（见 renderMain），保证标题栏等高 */
 
@@ -229,6 +240,8 @@
           <div class="cards" id="cards"></div>
           <!-- 自定义界面宿主：工作区自带界面时，在这里装一个沙箱 iframe（L3） -->
           <div class="plugin-host hidden" id="pluginHost"></div>
+          <!-- 内嵌浏览器宿主：学校/企业登录页在这里用 webview 打开（可保持登录会话） -->
+          <div class="web-host hidden" id="webHost"></div>
         </div>
       </section>
 
@@ -252,6 +265,7 @@
 const $ = id => document.getElementById(id);
 let workspaces = [];
 let currentId = null;
+let webState = null;      // { wsId, key, url }：当前内嵌浏览器属于哪个工作区
 const runOf = {};         // actionId -> runId（正在跑的）
 const lastOf = {};        // actionId -> {state, dur}
 
@@ -330,11 +344,118 @@ function renderSidebar(){
   });
 }
 
+/* ══════════════════════════════════════════════════════════════
+   内嵌浏览器：学校/企业登录页（Moodle、SSO、OA 等）
+   · 用 <webview> 而不是 iframe：不受 X-Frame-Options 限制，Cookie 能持久保存
+   · 地址栏可改成任何学校/企业的 Moodle，换学校不用改代码
+   · 宿主只允许 http/https，guest 里没有 Node 权限
+   ══════════════════════════════════════════════════════════════ */
+function closeWeb(){
+  const host = $('webHost');
+  if (host) { host.innerHTML = ''; host.classList.add('hidden'); }
+  $('panelBody').classList.remove('web-mode');
+  webState = null;
+}
+
+function webStorageKey(wsId, key){ return 'wb:web:' + wsId + ':' + key; }
+
+function loadLastUrl(wsId, key, fallback){
+  try { return localStorage.getItem(webStorageKey(wsId, key)) || fallback; }
+  catch (e) { return fallback; }
+}
+
+function saveLastUrl(wsId, key, url){
+  try { localStorage.setItem(webStorageKey(wsId, key), url); } catch (e) { /* 忽略 */ }
+}
+
+function normalizeUrl(raw){
+  let u = String(raw || '').trim();
+  if (!u) return '';
+  if (!/^[a-z]+:\/\//i.test(u)) u = 'https://' + u;
+  return /^https?:\/\//i.test(u) ? u : '';
+}
+
+function renderWeb(w, rawUrl, key, homeUrl){
+  const url = normalizeUrl(rawUrl);
+  const home = normalizeUrl(homeUrl || rawUrl) || url;
+  if (!url) { log('网页地址无效（只支持 http/https）：' + rawUrl, 'l-err'); return; }
+
+  const host = $('webHost');
+  host.innerHTML = '';
+  host.classList.remove('hidden');
+  $('panelBody').classList.add('web-mode');
+  $('cards').classList.add('hidden');
+  $('pluginHost').classList.add('hidden');
+  $('pluginHost').innerHTML = '';
+
+  const bar = document.createElement('div');
+  bar.className = 'web-bar';
+
+  const mk = (text, title, fn) => {
+    const b = document.createElement('button');
+    b.className = 'btn small'; b.textContent = text; b.title = title;
+    b.onclick = fn; bar.appendChild(b); return b;
+  };
+
+  const back = mk('←', '后退', () => { if (wv.canGoBack()) wv.goBack(); });
+  const fwd  = mk('→', '前进', () => { if (wv.canGoForward()) wv.goForward(); });
+  mk('⟳', '刷新', () => wv.reload());
+  mk('⌂', '回到默认页面', () => { wv.src = home; saveLastUrl(w.id, key, home); });
+
+  const input = document.createElement('input');
+  input.className = 'web-url';
+  input.type = 'text';
+  input.spellcheck = false;
+  input.value = url;
+  input.title = '输入学校/企业的 Moodle 或登录页地址，回车打开';
+  input.onkeydown = ev => {
+    if (ev.key !== 'Enter') return;
+    const next = normalizeUrl(input.value);
+    if (!next) { input.value = wv.getURL() || url; log('网页地址无效（只支持 http/https）', 'l-err'); return; }
+    wv.src = next;
+    saveLastUrl(w.id, key, next);
+  };
+  bar.appendChild(input);
+
+  const status = document.createElement('span');
+  status.className = 'web-status';
+  status.textContent = '加载中…';
+  bar.appendChild(status);
+
+  mk('返回', '关闭内嵌浏览器，回到按钮面板', () => { closeWeb(); renderMain(); });
+
+  const wv = document.createElement('webview');
+  wv.setAttribute('src', url);
+  wv.setAttribute('partition', 'persist:wb-' + String(w.id || 'web').replace(/[^a-zA-Z0-9_-]/g, '_'));
+  wv.setAttribute('webpreferences', 'contextIsolation=yes, nodeIntegration=no, sandbox=yes');
+
+  wv.addEventListener('did-start-loading', () => { status.textContent = '加载中…'; });
+  wv.addEventListener('did-stop-loading', () => {
+    status.textContent = '已加载';
+    input.value = wv.getURL() || input.value;
+    saveLastUrl(w.id, key, input.value);
+    back.disabled = !wv.canGoBack();
+    fwd.disabled = !wv.canGoForward();
+  });
+  wv.addEventListener('did-navigate', ev => { input.value = ev.url; });
+  wv.addEventListener('did-navigate-in-page', ev => { input.value = ev.url; });
+  wv.addEventListener('did-fail-load', ev => {
+    if (ev.errorCode === -3) return;
+    status.textContent = '加载失败';
+    log('网页加载失败：' + (ev.errorDescription || '') + '（' + (ev.validatedURL || '') + '）', 'l-err');
+  });
+
+  host.append(bar, wv);
+  webState = { wsId: w.id, key: key, url: url };
+  log('🌐 已打开内嵌浏览器：' + url, 'l-dim');
+}
+
 function renderMain(){
   const w = current();
 
   // 一个工作区都没有时的空状态
   if (!w) {
+    closeWeb();
     $('wsName').textContent = '还没有工作区';
     $('wsDesc').textContent = '点右上角「＋ 导入工作区」，选择一个包含 manifest.json 的工作区包文件夹';
     $('wsMeta').textContent = '';
@@ -359,13 +480,31 @@ function renderMain(){
   $('wsMeta').textContent =
     'id: ' + (w.id || '-') + ' · ' + acts.length + ' 个动作\n' +
     '权限: ' + (((w.permissions || []).join(' / ')) || '—') +
-    ' · 界面: ' + ((w.ui && w.ui.entry) ? '自定义' : '默认');
+    ' · 界面: ' + ((w.ui && w.ui.entry) ? '自定义' : (w.web ? '内嵌网页' : '默认'));
+
+  // 内嵌浏览器已经打开：保持它，不要每次重绘都重建（否则登录状态/输入会丢）
+  if (webState && webState.wsId === w.id) {
+    $('cards').classList.add('hidden');
+    $('pluginHost').classList.add('hidden');
+    $('pluginHost').innerHTML = '';
+    $('webHost').classList.remove('hidden');
+    $('panelBody').classList.add('web-mode');
+    return;
+  }
+  if (webState) closeWeb();
 
   // 该工作区自带界面（L3）→ 内容区交给它的沙箱 iframe
-  if (w.ui && w.ui.entry) { renderCustomUI(w); return; }
+  if (w.ui && w.ui.entry) { $('webHost').classList.add('hidden'); renderCustomUI(w); return; }
+
+  // 工作区清单声明了 web → 内容区直接内嵌这个页面（可登录、会话持久）
+  if (w.web && w.web.url) {
+    renderWeb(w, loadLastUrl(w.id, 'ws', w.web.url), 'ws', w.web.url);
+    return;
+  }
 
   // 否则用宿主默认渲染器
   $('pluginHost').classList.add('hidden');
+  $('webHost').classList.add('hidden');
   $('cards').classList.remove('hidden');
 
   const box = $('cards');
@@ -376,6 +515,7 @@ function renderMain(){
   }
   acts.forEach((a, i) => {
     const aid = actionId(w, a, i);
+    const isWeb = !!a.web;
     const running = runOf[aid];
     const last = lastOf[aid];
 
@@ -395,21 +535,24 @@ function renderMain(){
 
     const cmd = document.createElement('div');
     cmd.className = 'cmd';
-    cmd.textContent = a.command || '(未声明命令)';
-    cmd.title = a.command || '';
+    cmd.textContent = a.web || a.command || '(未声明命令)';
+    cmd.title = a.web || a.command || '';
 
     const foot = document.createElement('div');
     foot.className = 'foot';
-    foot.textContent = running ? '正在运行…'
+    foot.textContent = isWeb ? '点击在内嵌浏览器打开（可登录）'
+      : running ? '正在运行…'
       : (last ? ('上次 ' + (last.state === 'success' ? '✓ 成功' : '✗ 失败') + ' · 用时 ' + last.dur + 's') : '点击运行');
 
     // 在哪个目录里跑：没写 cwd 就是工作区包自己的目录
     const where = document.createElement('div');
     where.className = 'where';
-    where.textContent = a.cwd
-      ? ('📁 在作者指定的目录执行：' + a.cwd)
-      : '📁 在工作区包目录内执行';
-    where.title = a.cwd ? String(a.cwd) : '工作区包所在目录：' + (w.dir || '');
+    where.textContent = isWeb
+      ? '🌐 在工作台内嵌浏览器打开，登录状态会保留'
+      : (a.cwd
+        ? ('📁 在作者指定的目录执行：' + a.cwd)
+        : '📁 在工作区包目录内执行');
+    where.title = isWeb ? String(a.web) : (a.cwd ? String(a.cwd) : '工作区包所在目录：' + (w.dir || ''));
 
     card.append(pill, ct, cmd, foot, where);
 
@@ -461,12 +604,30 @@ function postToPlugin(msg){
   if (f && f.contentWindow) f.contentWindow.postMessage(msg, '*');
 }
 
+function pluginWorkspaceList(){
+  return workspaces.map(w => ({
+    id: w.id, name: w.name, icon: w.icon || '📦',
+    description: w.description || '', builtin: !!w.builtin
+  }));
+}
+
+function postWorkspaceListToPlugin(){
+  postToPlugin({ type: 'workspace-list', workspaces: pluginWorkspaceList() });
+}
+
+async function reloadWorkspaceList(){
+  workspaces = await window.wb.listWorkspaces();
+  if (!workspaces.some(w => w.id === currentId)) currentId = workspaces.length ? workspaces[0].id : null;
+  renderSidebar();
+}
+
 function postInitToPlugin(w){
   if (!w || !w.ui) return;
   postToPlugin({
     type: 'host-init',
     workspace: { id: w.id, name: w.name, description: w.description, icon: w.icon },
     actions: pluginActionList(w),
+    workspaces: pluginWorkspaceList(),
     permissions: w.permissions || [],
     theme: 'light'
   });
@@ -500,7 +661,7 @@ function renderCustomUI(w){
 }
 
 // 接收插件界面发来的消息（严格校验来源，只认我们自己的 iframe）
-window.addEventListener('message', ev => {
+window.addEventListener('message', async ev => {
   const f = pluginFrame();
   if (!f || ev.source !== f.contentWindow) return;    // 来源校验
   const msg = ev.data || {};
@@ -520,12 +681,39 @@ window.addEventListener('message', ev => {
     startAction(w, a, msg.actionId);
   } else if (msg.type === 'notify') {
     log('[界面] ' + String(msg.text || ''), 'l-dim');
+  } else if (msg.type === 'create-workspace') {
+    const r = await window.wb.createWorkspace({ name: msg.name, url: msg.url, icon: msg.icon });
+    if (r && r.ok) {
+      await reloadWorkspaceList();
+      log('已创建应用门户：' + r.workspace.name + '（左侧栏）', 'l-ok');
+    } else {
+      log('创建入口失败：' + ((r && r.error) || '未知错误'), 'l-err');
+    }
+    postToPlugin({
+      type: 'create-result',
+      ok: !!(r && r.ok),
+      error: (r && r.error) || '',
+      workspace: (r && r.workspace) || null
+    });
+    postWorkspaceListToPlugin();
+  } else if (msg.type === 'select-workspace') {
+    const target = workspaces.find(x => x.id === msg.workspaceId);
+    if (!target) return;
+    currentId = target.id;
+    renderSidebar();
+    renderMain();
   }
 });
 
 /* ── 执行 ── */
 async function startAction(w, a, aid){
   if (!aid) aid = actionId(w, a, (w.actions || []).indexOf(a));
+  if (a.web) {
+    log('▶ ' + a.title, 'l-dim');
+    log('🌐 ' + a.web, 'l-cmd');
+    renderWeb(w, loadLastUrl(w.id, 'a:' + aid, a.web), 'a:' + aid, a.web);
+    return;
+  }
   if (runOf[aid]) return;
   log('▶ ' + a.title, 'l-dim');
   log('$ ' + a.command, 'l-cmd');

@@ -235,11 +235,21 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,   // 界面与后台隔离
       nodeIntegration: false,   // 界面拿不到 Node 能力
-      sandbox: true             // 界面关进沙箱（安全底线）
+      sandbox: true,            // 界面关进沙箱（安全底线）
+      webviewTag: true          // 允许内容区用 <webview> 内嵌学校/企业登录页
     }
   });
   win.setMenuBarVisibility(false);
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  // 内嵌 webview 的安全闸门：只允许 http/https，禁止 guest 拿到 Node/预加载脚本
+  win.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+    delete webPreferences.preload;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+    webPreferences.sandbox = true;
+    if (!/^https?:\/\//i.test(String(params.src || ''))) event.preventDefault();
+  });
 
   // 最大化状态变化时通知界面，好把右上角的 □ / ❐ 图标换掉
   win.on('maximize', () => send({ type: 'maximized', value: true }));
@@ -254,6 +264,56 @@ ipcMain.handle('wb:workspaceDir', () => {
   const dir = MANAGED_DIR();
   try { fs.mkdirSync(dir, { recursive: true }); } catch (e) { /* 忽略 */ }
   return { ok: true, dir };
+});
+
+/** 界面创建应用门户：在"工作区文件夹"里生成一个新的页面（工作区包）
+ *  只接受 http/https，文件夹名由后台生成，避免用户输入参与路径拼接。 */
+ipcMain.handle('wb:createWorkspace', (e, spec) => {
+  const s = spec || {};
+  const name = String(s.name == null ? '' : s.name).trim();
+  const rawUrl = String(s.url == null ? '' : s.url).trim();
+  const icon = String(s.icon == null ? '' : s.icon).trim().slice(0, 8) || '🌐';
+
+  if (!name) return { ok: false, error: '请填写页面名称' };
+  if (name.length > 40) return { ok: false, error: '页面名称最多 40 个字' };
+  if (/[\\/:*?"<>|\u0000-\u001f]/.test(name)) {
+    return { ok: false, error: '页面名称不能包含 \\ / : * ? " < > |' };
+  }
+
+  let parsed;
+  try { parsed = new URL(rawUrl); }
+  catch (err) { return { ok: false, error: '网址格式不正确，请填写完整网址' }; }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { ok: false, error: '只支持 http/https 网址' };
+  }
+  if (parsed.href.length > 2000) return { ok: false, error: '网址太长' };
+
+  const id = 'custom-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+  const dir = path.join(MANAGED_DIR(), id);
+  const manifest = {
+    id: id,
+    name: name,
+    icon: icon,
+    description: '应用门户：' + parsed.hostname,
+    version: '1.0.0',
+    permissions: ['exec'],
+    actions: [
+      {
+        id: 'open',
+        title: '打开 ' + name,
+        icon: '🌐',
+        command: 'start "" "' + parsed.href + '"'
+      }
+    ]
+  };
+
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
+    return { ok: true, workspace: { id: id, name: name, icon: icon, dir: dir } };
+  } catch (err) {
+    return { ok: false, error: '创建失败：' + err.message };
+  }
 });
 
 ipcMain.handle('wb:run', (e, spec) => {
@@ -411,6 +471,15 @@ function registerWorkspaceProtocol() {
 
 // ── 生命周期 ────────────────────────────────────────────────────
 app.whenReady().then(() => {
+  // webview 里的 target=_blank / window.open：不弹新 Electron 窗口，交给系统浏览器
+  app.on('web-contents-created', (event, contents) => {
+    if (contents.getType() !== 'webview') return;
+    contents.setWindowOpenHandler(({ url }) => {
+      if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+      return { action: 'deny' };
+    });
+  });
+
   registerWorkspaceProtocol();
   loadStore();
   createWindow();

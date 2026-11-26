@@ -30,6 +30,9 @@ contextBridge.exposeInMainWorld('wb', {
   /** 在资源管理器里打开某个路径 */
   openPath: (p) => ipcRenderer.invoke('wb:openPath', p),
 
+  /** 创建一个应用门户页面（用户填写学校名称 + 网址） */
+  createWorkspace: (spec) => ipcRenderer.invoke('wb:createWorkspace', spec),
+
   /** 窗口控制（无边框窗口：由界面上的按钮触发，而不是系统标题栏）*/
   winMinimize: () => ipcRenderer.invoke('wb:winMinimize'),
   winToggleMaximize: () => ipcRenderer.invoke('wb:winToggleMaximize'),

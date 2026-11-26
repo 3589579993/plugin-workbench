@@ -1,0 +1,35 @@
+{
+  "id": "custom-portal",
+  "name": "应用门户",
+  "icon": "➕",
+  "description": "澳科大学生示例 + 自定义学校/企业入口：填名称和网址即可新建页面",
+  "version": "1.1.0",
+  "permissions": ["exec"],
+  "ui": { "entry": "ui/index.html" },
+  "actions": [
+    {
+      "id": "must-home",
+      "title": "MUST 官网",
+      "icon": "🏫",
+      "command": "start \"\" \"https://www.must.edu.mo/\""
+    },
+    {
+      "id": "must-moodle",
+      "title": "Moodle 登录",
+      "icon": "🔑",
+      "command": "start \"\" \"https://moodle.must.edu.mo/\""
+    },
+    {
+      "id": "must-mail",
+      "title": "MUST 邮箱",
+      "icon": "✉",
+      "command": "start \"\" \"https://outlook.office.com/mail/\""
+    },
+    {
+      "id": "hint",
+      "title": "使用说明",
+      "icon": "ℹ",
+      "command": "echo 澳科大同学可直接用上面的示例；其他学校填写名称和网址，点“创建新页面”。"
+    }
+  ]
+}

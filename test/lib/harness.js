@@ -52,7 +52,10 @@ function boot(opts) {
   };
 
   /* ── 桩：假 electron ─────────────────────────────────────────── */
-  const fakeWebContents = { send: function (ch, msg) { state.events.push(msg); } };
+  const fakeWebContents = {
+    send: function (ch, msg) { state.events.push(msg); },
+    on: function () { return this; }
+  };
 
   function FakeWindow() {
     this.webContents = fakeWebContents;

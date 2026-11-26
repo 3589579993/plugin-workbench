@@ -48,11 +48,11 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
   console.log('═══ 一、接口契约（主进程 ↔ 渲染进程）═══\n');
 
-  check('I-01', '13 个 IPC 通道全部注册', function () {
+  check('I-01', '14 个 IPC 通道全部注册', function () {
     const need = ['wb:listWorkspaces', 'wb:workspaceDir', 'wb:run', 'wb:stop',
       'wb:pickPackage', 'wb:installPackage', 'wb:uninstall', 'wb:exportPackage',
       'wb:openPath', 'wb:winMinimize', 'wb:winToggleMaximize', 'wb:winClose',
-      'wb:winIsMaximized'];
+      'wb:winIsMaximized', 'wb:createWorkspace'];
     const missing = need.filter(function (c) { return !app.has(c); });
     assert.deepStrictEqual(missing, [], '缺失通道：' + missing.join(','));
   });
@@ -66,9 +66,15 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   });
 
   const list = await app.invoke('wb:listWorkspaces');
-  check('I-04', '扫描链路：内置 4 个 + 用户目录 1 个 = 5 个工作区', function () {
-    assert.strictEqual(list.length, 5, '实际 ' + list.map(function (w) { return w.id; }).join(','));
-    assert.strictEqual(list.filter(function (w) { return w.builtin; }).length, 4);
+  const builtinDir = path.join(ROOT, 'workspaces');
+  const builtinCount = fs.readdirSync(builtinDir).filter(function (name) {
+    const dir = path.join(builtinDir, name);
+    return fs.statSync(dir).isDirectory() && fs.existsSync(path.join(dir, 'manifest.json'));
+  }).length;
+  check('I-04', '扫描链路：内置 ' + builtinCount + ' 个 + 用户目录 1 个', function () {
+    assert.strictEqual(list.length, builtinCount + 1,
+      '实际 ' + list.map(function (w) { return w.id; }).join(','));
+    assert.strictEqual(list.filter(function (w) { return w.builtin; }).length, builtinCount);
   });
 
   console.log('\n═══ 二、"执行动作"链路：校验 → 启动 → 输出 → 结束 ═══\n');
@@ -305,6 +311,23 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   await app.invoke('wb:winClose');
   check('I-31', 'wb:winClose 关闭窗口', function () {
     assert.strictEqual(app.state.window.destroyed, true);
+  });
+
+  const created = await app.invoke('wb:createWorkspace', {
+    name: '测试学校入口', url: 'https://example.com/login', icon: '🏫'
+  });
+  check('I-32', 'createWorkspace 生成可扫描的应用门户页面', function () {
+    assert.strictEqual(created.ok, true);
+    const file = path.join(created.workspace.dir, 'manifest.json');
+    assert.strictEqual(fs.existsSync(file), true);
+    const m = JSON.parse(fs.readFileSync(file, 'utf8'));
+    assert.strictEqual(m.name, '测试学校入口');
+    assert.ok(m.actions[0].command.indexOf('example.com/login') >= 0);
+  });
+
+  const bad = await app.invoke('wb:createWorkspace', { name: '坏入口', url: 'javascript:alert(1)' });
+  check('I-33', 'createWorkspace 拒绝非 http/https 网址', function () {
+    assert.strictEqual(bad.ok, false);
   });
 
   console.warn = realWarn;

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>应用门户</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --primary:#0052CC; --text:#172B4D; --muted:#6B778C;
+    --line:#E1E4E8; --soft:#F4F5F7; --ok:#00875A; --err:#DE350B;
+    --mono:"SF Mono",Consolas,"Cascadia Mono",monospace;
+    --sans:"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,system-ui,sans-serif;
+  }
+  body{background:#fff;color:var(--text);font:13.5px/1.6 var(--sans);padding:18px;min-height:100vh}
+  .wrap{max-width:760px;margin:0 auto}
+  .head h1{font-size:18px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .head h1::before{content:"";width:3px;height:18px;border-radius:2px;background:var(--primary)}
+  .head p{color:var(--muted);font-size:12.5px;margin-bottom:16px}
+  form{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:16px}
+  .row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .row label{width:52px;flex:none;color:var(--muted);font-size:12.5px}
+  .row input{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:5px;
+    padding:8px 10px;font:inherit;color:var(--text);outline:none}
+  .row input:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(0,82,204,.12)}
+  .row.small input{flex:0 0 90px}
+  #create{margin-left:auto;background:var(--primary);border:1px solid var(--primary);color:#fff;
+    padding:8px 16px;border-radius:5px;font:inherit;font-weight:600;cursor:pointer}
+  #create:hover{background:#0747A6;border-color:#0747A6}
+  #create:disabled{opacity:.55;cursor:default}
+  .status{min-height:20px;font-size:12px;margin-top:4px}
+  .status.ok{color:var(--ok)}
+  .status.err{color:var(--err)}
+  .list-head{margin:22px 0 10px;font-size:12.5px;color:var(--muted);letter-spacing:.04em}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .item{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);
+    border-radius:6px;padding:11px 13px}
+  .item:hover{border-color:var(--primary)}
+  .item .ic{width:34px;height:34px;flex:none;display:flex;align-items:center;justify-content:center;
+    background:var(--soft);border-radius:6px;font-size:18px}
+  .item .info{flex:1;min-width:0}
+  .item .nm{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .ds{font-size:11.5px;color:var(--muted);font-family:var(--mono);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .open{flex:none;background:#fff;border:1px solid var(--line);color:var(--text);
+    padding:5px 14px;border-radius:4px;font:inherit;font-size:12px;cursor:pointer}
+  .item .open:hover{border-color:var(--primary);color:var(--primary)}
+  .empty{color:var(--muted);font-size:12.5px;text-align:center;padding:22px;
+    border:1px dashed var(--line);border-radius:6px;background:#FAFBFC}
+  .example{margin-bottom:6px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .example-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--soft);
+    padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+  .example-head b{color:var(--text);font-size:13px}
+  .ex-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;padding:14px}
+  .ex-btn{display:flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line);
+    border-radius:6px;padding:10px 12px;font:inherit;color:var(--text);cursor:pointer;text-align:left}
+  .ex-btn:hover{border-color:var(--primary);box-shadow:0 0 0 2px rgba(0,82,204,.08)}
+  .ex-btn .eic{font-size:17px}
+  .ex-btn .etx{font-size:12.5px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>应用门户 <span style="font-weight:400;color:var(--muted);font-size:13px">自定义学校 / 企业入口</span></h1>
+    <p>澳科大同学可以直接用下面的示例；其他学校或企业填写名称和网址，创建后会出现在左侧列表里。</p>
+  </div>
+
+  <div class="example">
+    <div class="example-head"><b>🏫 澳科大学生示例</b><span>MUST 官网 / Moodle 登录 / 学生邮箱，点一下用浏览器打开</span></div>
+    <div class="ex-grid">
+      <button class="ex-btn" type="button" data-action="must-home"><span class="eic">🏫</span><span class="etx">MUST 官网</span></button>
+      <button class="ex-btn" type="button" data-action="must-moodle"><span class="eic">🔑</span><span class="etx">Moodle 登录</span></button>
+      <button class="ex-btn" type="button" data-action="must-mail"><span class="eic">✉</span><span class="etx">MUST 邮箱</span></button>
+    </div>
+  </div>
+
+  <div class="list-head" style="margin-top:0">创建自己的入口</div>
+  <form id="form">
+    <div class="row">
+      <label>名称</label>
+      <input id="name" maxlength="40" placeholder="例如：Huawei 登录 / 我的学校" autocomplete="off">
+    </div>
+    <div class="row">
+      <label>网址</label>
+      <input id="url" placeholder="https://moodle.example.edu" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="row small">
+      <label>图标</label>
+      <input id="icon" maxlength="4" value="🌐" autocomplete="off">
+      <button id="create" type="submit">创建新页面</button>
+    </div>
+    <div id="status" class="status"></div>
+  </form>
+
+  <div class="list-head">我创建的页面 <span id="count"></span></div>
+  <div id="list" class="list"><div class="empty">还没有自定义页面，先在上方创建一个。</div></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let items = [];
+
+  function post(msg){ parent.postMessage(msg, '*'); }
+
+  function setStatus(text, ok){
+    const s = $('status');
+    s.textContent = text || '';
+    s.className = 'status ' + (ok ? 'ok' : 'err');
+  }
+
+  function renderList(){
+    const mine = items.filter(w => !w.builtin);
+    $('count').textContent = mine.length ? '(' + mine.length + ')' : '';
+    const list = $('list');
+    if (!mine.length) {
+      list.innerHTML = '<div class="empty">还没有自定义页面，先在上方创建一个。</div>';
+      return;
+    }
+    list.innerHTML = '';
+    mine.forEach(w => {
+      const row = document.createElement('div');
+      row.className = 'item';
+
+      const ic = document.createElement('div');
+      ic.className = 'ic';
+      ic.textContent = w.icon || '🌐';
+
+      const info = document.createElement('div');
+      info.className = 'info';
+      const nm = document.createElement('div');
+      nm.className = 'nm';
+      nm.textContent = w.name || '(未命名)';
+      const ds = document.createElement('div');
+      ds.className = 'ds';
+      ds.textContent = w.description || '';
+      info.append(nm, ds);
+
+      const open = document.createElement('button');
+      open.className = 'open';
+      open.type = 'button';
+      open.textContent = '打开';
+      open.onclick = () => post({ type: 'select-workspace', workspaceId: w.id });
+
+      row.append(ic, info, open);
+      list.appendChild(row);
+    });
+  }
+
+  $('form').addEventListener('submit', ev => {
+    ev.preventDefault();
+    const name = $('name').value.trim();
+    let url = $('url').value.trim();
+    const icon = $('icon').value.trim() || '🌐';
+
+    if (!name) { setStatus('请填写页面名称', false); return; }
+    if (!url) { setStatus('请填写网址', false); return; }
+    if (!/^[a-z]+:\/\//i.test(url)) url = 'https://' + url;
+    if (!/^https?:\/\//i.test(url)) { setStatus('只支持 http/https 网址', false); return; }
+
+    $('create').disabled = true;
+    setStatus('正在创建…', true);
+    post({ type: 'create-workspace', name: name, url: url, icon: icon });
+  });
+
+  document.querySelectorAll('.ex-btn').forEach(btn => {
+    btn.onclick = () => post({ type: 'run', actionId: btn.dataset.action });
+  });
+  window.addEventListener('message', ev => {
+    const msg = ev.data || {};
+    if (msg.type === 'host-init' || msg.type === 'workspace-list') {
+      items = Array.isArray(msg.workspaces) ? msg.workspaces : items;
+      renderList();
+    } else if (msg.type === 'create-result') {
+      $('create').disabled = false;
+      if (msg.ok && msg.workspace) {
+        setStatus('已创建：' + msg.workspace.name + '，左侧栏已出现新页面。', true);
+        $('name').value = '';
+        $('url').value = '';
+      } else {
+        setStatus(msg.error || '创建失败', false);
+      }
+    }
+  });
+
+  post({ type: 'ready' });
+</script>
+</body>
+</html>
