@@ -20,7 +20,7 @@ const SUITES = [
   ['黑盒②：因果图 + 决策表', 'test/bb-decision-table.test.js'],
   ['白盒：逻辑覆盖 + 基本路径', 'test/wb-resolve-run.test.js'],
   ['集成测试：桩 + 驱动', 'test/integration.test.js'],
-  ['AI 助手：安装引导（dry-run）', 'test/ai-assistant.test.js'],
+  ['AI 助手：安装引导（PowerShell dry-run）', 'test/ai-assistant.test.js'],
   ['集成测试：真实起进程（原有）', 'test/run-in-package.test.js']
 ];
 

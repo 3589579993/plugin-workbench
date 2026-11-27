@@ -16,6 +16,7 @@
   "build": {
     "appId": "com.local.workbench",
     "productName": "可插件化工作台",
+    "asar": false,
     "files": [
       "main.js",
       "preload.js",

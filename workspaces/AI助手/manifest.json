@@ -2,45 +2,45 @@
   "id": "ai-assistant",
   "name": "AI 助手",
   "icon": "🤖",
-  "description": "常用大模型一键直达：优先启动本机 CLI；没装会引导安装或打开官方下载页",
-  "version": "1.1.0",
+  "description": "常用大模型一键直达：已装就打开；没装会帮你下载安装到电脑，或用网页版",
+  "version": "1.2.0",
   "permissions": ["exec"],
   "actions": [
     {
       "id": "ai-claude",
       "title": "Claude",
       "icon": "✳",
-      "command": "node \"open-ai.js\" claude"
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"open-ai.ps1\" claude"
     },
     {
       "id": "ai-deepseek",
       "title": "DeepSeek 深度求索",
       "icon": "🐋",
-      "command": "node \"open-ai.js\" deepseek"
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"open-ai.ps1\" deepseek"
     },
     {
       "id": "ai-gemini",
       "title": "Gemini",
       "icon": "✨",
-      "command": "node \"open-ai.js\" gemini"
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"open-ai.ps1\" gemini"
     },
     {
       "id": "ai-doubao",
       "title": "豆包 Doubao",
       "icon": "🫘",
-      "command": "node \"open-ai.js\" doubao"
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"open-ai.ps1\" doubao"
     },
     {
       "id": "ai-chatgpt",
       "title": "ChatGPT / Codex",
       "icon": "💬",
-      "command": "node \"open-ai.js\" chatgpt"
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"open-ai.ps1\" chatgpt"
     },
     {
       "id": "ai-qwen",
       "title": "通义千问 Qwen",
       "icon": "☁",
-      "command": "node \"open-ai.js\" qwen"
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"open-ai.ps1\" qwen"
     }
   ]
 }
