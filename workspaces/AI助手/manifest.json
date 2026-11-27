@@ -2,8 +2,8 @@
   "id": "ai-assistant",
   "name": "AI 助手",
   "icon": "🤖",
-  "description": "常用大模型一键直达：优先启动本机 CLI，没装则打开网页版",
-  "version": "1.0.0",
+  "description": "常用大模型一键直达：优先启动本机 CLI；没装会引导安装或打开官方下载页",
+  "version": "1.1.0",
   "permissions": ["exec"],
   "actions": [
     {

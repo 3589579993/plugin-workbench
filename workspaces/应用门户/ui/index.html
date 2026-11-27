@@ -99,6 +99,7 @@
 <script>
   const $ = id => document.getElementById(id);
   let items = [];
+  let actionIds = {};   // 原始 id → 宿主下发的完整 id（工作区id:动作id）
 
   function post(msg){ parent.postMessage(msg, '*'); }
 
@@ -163,11 +164,21 @@
   });
 
   document.querySelectorAll('.ex-btn').forEach(btn => {
-    btn.onclick = () => post({ type: 'run', actionId: btn.dataset.action });
+    btn.onclick = () => post({ type: 'run', actionId: actionIds[btn.dataset.action] || btn.dataset.action });
   });
+
   window.addEventListener('message', ev => {
     const msg = ev.data || {};
-    if (msg.type === 'host-init' || msg.type === 'workspace-list') {
+    if (msg.type === 'host-init') {
+      actionIds = {};
+      (msg.actions || []).forEach(a => {
+        const full = String(a.id || '');
+        const raw = full.slice(full.lastIndexOf(':') + 1);
+        if (raw) actionIds[raw] = full;
+      });
+      items = Array.isArray(msg.workspaces) ? msg.workspaces : items;
+      renderList();
+    } else if (msg.type === 'workspace-list') {
       items = Array.isArray(msg.workspaces) ? msg.workspaces : items;
       renderList();
     } else if (msg.type === 'create-result') {

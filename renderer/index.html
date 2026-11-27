@@ -782,6 +782,8 @@ async function refresh(preferId){
   workspaces = await window.wb.listWorkspaces();
   if (preferId) currentId = preferId;
   if (!workspaces.some(w => w.id === currentId)) currentId = workspaces.length ? workspaces[0].id : null;
+  // 手动「刷新」时连同当前自定义界面一起重载，避免内置 ui 改了却还显示旧 iframe
+  $('pluginHost').dataset.ws = '';
   renderSidebar();
   renderMain();
 }

@@ -175,12 +175,12 @@ const BV_MANIFEST = [
     const builtin = list.filter(function (w) { return w.builtin; });
     assert.ok(builtin.length >= 3, '内置工作区数量 = ' + builtin.length);
   });
-  const dupDir = path.join(app.userData, 'workspaces', '基础工作');
+  const dupDir = path.join(app.userData, 'workspaces', '路径示例');
   fs.mkdirSync(dupDir, { recursive: true });
   fs.writeFileSync(path.join(dupDir, 'manifest.json'), JSON.stringify(
     { name: '冒名的内置工作区', actions: [{ title: 'T', command: 'echo 1' }] }), 'utf8');
   const list2 = await app.invoke('wb:listWorkspaces');
-  const dups = list2.filter(function (w) { return w.id === '基础工作'; });
+  const dups = list2.filter(function (w) { return w.id === '路径示例'; });
   check('BV12', '同名 id 冲突时内置优先（只留一份且标记为内置）', function () {
     assert.strictEqual(dups.length, 1, '同 id 应只剩一份，实际 ' + dups.length);
     assert.strictEqual(dups[0].builtin, true, '应保留内置那份');
