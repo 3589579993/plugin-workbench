@@ -66,15 +66,17 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   });
 
   const list = await app.invoke('wb:listWorkspaces');
-  const builtinDir = path.join(ROOT, 'workspaces');
-  const builtinCount = fs.readdirSync(builtinDir).filter(function (name) {
-    const dir = path.join(builtinDir, name);
+  const starterDir = path.join(ROOT, 'workspaces');
+  const starterCount = fs.readdirSync(starterDir).filter(function (name) {
+    const dir = path.join(starterDir, name);
     return fs.statSync(dir).isDirectory() && fs.existsSync(path.join(dir, 'manifest.json'));
   }).length;
-  check('I-04', '扫描链路：内置 ' + builtinCount + ' 个 + 用户目录 1 个', function () {
-    assert.strictEqual(list.length, builtinCount + 1,
+  check('I-04', '扫描链路：' + starterCount + ' 个预装包和 1 个新增包来自同一目录', function () {
+    assert.strictEqual(list.length, starterCount + 1,
       '实际 ' + list.map(function (w) { return w.id; }).join(','));
-    assert.strictEqual(list.filter(function (w) { return w.builtin; }).length, builtinCount);
+    assert.ok(list.every(function (w) {
+      return path.dirname(w.dir) === path.join(app.userData, 'workspaces') && !w.builtin;
+    }));
   });
 
   console.log('\n═══ 二、"执行动作"链路：校验 → 启动 → 输出 → 结束 ═══\n');
@@ -199,6 +201,20 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
     assert.ok(list2.some(function (w) { return w.id === 'it-roundtrip'; }));
   });
 
+  const canceled = await app.invoke('wb:uninstall', dest);
+  const afterCancel = await app.invoke('wb:listWorkspaces');
+  check('I-19a', '删除弹窗显示工作区名称，取消后文件和列表项仍在', function () {
+    const prompt = app.state.dialog.lastMessageBox;
+    assert.ok(prompt.message.includes('往返包'));
+    assert.deepStrictEqual(prompt.buttons, ['取消', '删除']);
+    assert.strictEqual(prompt.defaultId, 0);
+    assert.strictEqual(prompt.cancelId, 0);
+    assert.strictEqual(canceled.canceled, true);
+    assert.ok(fs.existsSync(path.join(dest, 'manifest.json')));
+    assert.ok(afterCancel.some(function (w) { return w.id === 'it-roundtrip'; }));
+  });
+
+  app.state.dialog.messageBoxAnswer = 1;
   const un = await app.invoke('wb:uninstall', dest);
   const list3 = await app.invoke('wb:listWorkspaces');
   check('I-19', '卸载后从列表消失，软件目录里的那份被删除', function () {
@@ -207,11 +223,16 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
     assert.strictEqual(list3.some(function (w) { return w.id === 'it-roundtrip'; }), false);
   });
 
-  const builtin = list3.find(function (w) { return w.builtin; });
-  const unBuiltin = await app.invoke('wb:uninstall', builtin.dir);
-  check('I-20', '卸载内置工作区不会删除磁盘文件（保护内置包）', function () {
-    assert.strictEqual(unBuiltin.deleted, false);
-    assert.strictEqual(fs.existsSync(builtin.dir), true);
+  const starter = list3.find(function (w) { return w.id === '路径示例'; });
+  const unStarter = await app.invoke('wb:uninstall', starter.dir);
+  const restarted = boot({ userData: app.userData });
+  await restarted.ready();
+  const restartedList = await restarted.invoke('wb:listWorkspaces');
+  check('I-20', '预装工作区可以卸载，重启后仍然保持已卸载状态', function () {
+    assert.strictEqual(unStarter.deleted, true);
+    assert.strictEqual(fs.existsSync(starter.dir), false);
+    assert.strictEqual(fs.existsSync(path.join(starterDir, '路径示例', 'manifest.json')), true);
+    assert.ok(!restartedList.some(function (w) { return w.id === starter.id; }));
   });
 
   console.log('\n═══ 六、wsp:// 协议（沙箱自定义界面的资源通道）═══\n');

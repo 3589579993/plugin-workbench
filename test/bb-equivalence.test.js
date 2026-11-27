@@ -117,6 +117,12 @@ const BV_MANIFEST = [
   };
 
   const app = boot();
+  const userCopy = app.writePackage('user-path-example', {
+    id: '路径示例', name: '自定义路径示例', actions: [{ title: 'T', command: 'echo 1' }]
+  });
+  const reservedDir = app.writePackage('霓虹看板', {
+    id: 'user-folder-collision', name: '用户工作区', actions: [{ title: 'T', command: 'echo 1' }]
+  });
   await app.ready();
 
   console.log('\n═══ 一、等价类划分：manifest.json 装载 ═══');
@@ -170,21 +176,23 @@ const BV_MANIFEST = [
     assert.ok(listedIds.indexOf('BV03') >= 0, 'BV03 应正常出现');
   });
 
-  /* 内置工作区：内置 + 用户目录合并，且同名时内置优先 */
-  check('BV11', '内置工作区被装载（至少 3 个）', function () {
-    const builtin = list.filter(function (w) { return w.builtin; });
-    assert.ok(builtin.length >= 3, '内置工作区数量 = ' + builtin.length);
+  check('BV11', '随项目提供的工作区从用户目录装载', function () {
+    const starterIds = ['ai-assistant', 'custom-portal', '路径示例', '霓虹看板'];
+    const starterWorkspaces = list.filter(function (w) { return starterIds.includes(w.id); });
+    assert.strictEqual(starterWorkspaces.length, starterIds.length);
+    assert.ok(starterWorkspaces.every(function (w) {
+      return path.dirname(w.dir) === path.join(app.userData, 'workspaces') && !w.builtin;
+    }));
   });
-  const dupDir = path.join(app.userData, 'workspaces', '路径示例');
-  fs.mkdirSync(dupDir, { recursive: true });
-  fs.writeFileSync(path.join(dupDir, 'manifest.json'), JSON.stringify(
-    { name: '冒名的内置工作区', actions: [{ title: 'T', command: 'echo 1' }] }), 'utf8');
-  const list2 = await app.invoke('wb:listWorkspaces');
-  const dups = list2.filter(function (w) { return w.id === '路径示例'; });
-  check('BV12', '同名 id 冲突时内置优先（只留一份且标记为内置）', function () {
-    assert.strictEqual(dups.length, 1, '同 id 应只剩一份，实际 ' + dups.length);
-    assert.strictEqual(dups[0].builtin, true, '应保留内置那份');
-    assert.notStrictEqual(dups[0].name, '冒名的内置工作区');
+  check('BV12', '初始化保留同 ID 的工作区及已被占用的目录', function () {
+    const matches = list.filter(function (w) { return w.id === '路径示例'; });
+    assert.strictEqual(matches.length, 1);
+    assert.strictEqual(matches[0].dir, userCopy);
+    assert.strictEqual(matches[0].name, '自定义路径示例');
+    assert.strictEqual(byId['user-folder-collision'].dir, reservedDir);
+    assert.strictEqual(byId['user-folder-collision'].name, '用户工作区');
+    assert.notStrictEqual(byId['霓虹看板'].dir, reservedDir);
+    assert.ok(fs.existsSync(path.join(byId['霓虹看板'].dir, 'ui', 'index.html')));
   });
 
   console.log('\n═══ 二、边界值分析：manifest 字段边界 ═══\n');

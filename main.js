@@ -35,7 +35,7 @@ let win = null;
 const runs = new Map();              // runId -> { child, pid, actionId, startedAt, stopped }
 let installed = [];                  // 老的「导入记录」（绝对路径列表，保留用于兼容旧版本）
 
-const BUILTIN_DIR = path.join(__dirname, 'workspaces');
+const STARTER_PACKAGES_DIR = path.join(__dirname, 'workspaces');
 /** 工作区文件夹：用户自己把工作区包复制进来的地方（像 Minecraft 的 mods 目录） */
 const MANAGED_DIR = () => path.join(app.getPath('userData'), 'workspaces');
 const storePath = () => path.join(app.getPath('userData'), 'installed.json');
@@ -96,7 +96,7 @@ function readPackage(dir) {
 }
 
 /** 扫描一个目录：里面每个子目录 = 一个工作区包（含 manifest.json） */
-function scanDir(dir, isBuiltin) {
+function scanDir(dir) {
   const out = [];
   let names = [];
   try { names = fs.readdirSync(dir); } catch (e) { return out; }
@@ -104,8 +104,8 @@ function scanDir(dir, isBuiltin) {
     const sub = path.join(dir, name);
     try { if (!fs.statSync(sub).isDirectory()) continue; } catch (e) { continue; }
     const r = readPackage(sub);
-    if (r.ok) out.push({ ...r.manifest, dir: sub, builtin: isBuiltin });
-    else console.warn('[' + (isBuiltin ? '内置工作区' : '工作区文件夹') + '读取失败]', name, r.error);
+    if (r.ok) out.push({ ...r.manifest, dir: sub, builtin: false });
+    else console.warn('[工作区包读取失败]', sub, r.error);
   }
   return out;
 }
@@ -126,15 +126,13 @@ function saveStore() {
   } catch (e) { console.warn('保存导入记录失败', e.message); }
 }
 
-/** 汇总：内置工作区 + 工作区文件夹里用户自己复制进来的包
- *  每次调用都重新扫描两个目录 → 新复制进去的工作区不用重启软件，点「刷新」即可出现。
- *  同名冲突：内置的优先，其次工作区文件夹里排在前面的那个。 */
+/** 扫描工作区文件夹，并兼容旧版记录的外部工作区。 */
 function allWorkspaces() {
-  const out = scanDir(BUILTIN_DIR, true);
-  const seen = new Set(out.map(w => w.id));
+  const out = [];
+  const seen = new Set();
 
-  for (const w of scanDir(MANAGED_DIR(), false)) {
-    if (seen.has(w.id)) continue;       // 与内置工作区同 id → 内置优先
+  for (const w of scanDir(MANAGED_DIR())) {
+    if (seen.has(w.id)) continue;
     seen.add(w.id);
     out.push(w);
   }
@@ -148,6 +146,44 @@ function allWorkspaces() {
     out.push({ ...r.manifest, dir: dir, builtin: false });
   }
   return out;
+}
+
+/** 把随项目提供的工作区安装到用户目录一次，之后由用户管理这些副本。 */
+function initializeWorkspaces() {
+  const root = MANAGED_DIR();
+  const marker = path.join(app.getPath('userData'), 'workspaces-initialized');
+  if (fs.existsSync(marker)) return;
+
+  fs.mkdirSync(root, { recursive: true });
+  const installedIds = new Set(allWorkspaces().map(w => w.id));
+  for (const { id, dir: source } of scanDir(STARTER_PACKAGES_DIR)) {
+    if (installedIds.has(id)) continue;
+    const name = path.basename(source);
+    let target = path.join(root, name);
+    for (let suffix = 2; fs.existsSync(target); suffix++) {
+      target = path.join(root, name + '-' + suffix);
+    }
+
+    // 复制完整后再移入扫描目录，程序中断时可以在下次启动重试。
+    const staging = fs.mkdtempSync(path.join(path.dirname(root), '.workspace-'));
+    try {
+      const copy = path.join(staging, name);
+      fs.cpSync(source, copy, { recursive: true });
+      if (path.basename(target) !== name) {
+        const file = path.join(copy, 'manifest.json');
+        const manifest = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+        if (!manifest.id) {
+          manifest.id = id;
+          fs.writeFileSync(file, JSON.stringify(manifest, null, 2), 'utf8');
+        }
+      }
+      fs.renameSync(copy, target);
+      installedIds.add(id);
+    } finally {
+      fs.rmSync(staging, { recursive: true, force: true });
+    }
+  }
+  fs.writeFileSync(marker, '');
 }
 
 // ── 执行引擎 ────────────────────────────────────────────────────
@@ -378,17 +414,37 @@ ipcMain.handle('wb:installPackage', (e, dir) => {
 
 /** 卸载：移除记录，并删掉**已复制进软件目录**的那份文件（不碰用户原始文件夹） */
 ipcMain.handle('wb:uninstall', (e, dir) => {
-  installed = installed.filter(d => d !== dir);
-  saveStore();
+  const workspace = allWorkspaces().find(w => w.dir === dir);
+  if (!workspace) return { ok: false, error: '找不到该工作区' };
+
+  const target = path.resolve(workspace.dir);
+  const managed = path.resolve(MANAGED_DIR());
+  const inWorkspaceFolder = path.dirname(target) === managed;
+  const confirm = dialog.showMessageBoxSync(win, {
+    type: 'warning',
+    title: '删除工作区',
+    message: '确定删除「' + workspace.name + '」吗？',
+    detail: inWorkspaceFolder
+      ? '此操作会永久删除工作区文件夹里的这个工作区包。'
+      : '此操作会移除旧版导入记录，原始工作区文件仍保留在原位置。',
+    buttons: ['取消', '删除'],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true
+  });
+  if (confirm !== 1) return { ok: false, canceled: true };
+
   let deleted = false;
   try {
-    const managed = path.resolve(MANAGED_DIR());
-    const target = path.resolve(dir);
-    if (target.startsWith(managed + path.sep) && fs.existsSync(target)) {
+    if (inWorkspaceFolder && fs.existsSync(target)) {
       fs.rmSync(target, { recursive: true, force: true });
       deleted = true;
     }
-  } catch (err) { /* 忽略删除失败 */ }
+  } catch (err) {
+    return { ok: false, error: '删除工作区失败：' + err.message };
+  }
+  installed = installed.filter(d => d !== workspace.dir);
+  saveStore();
   return { ok: true, deleted: deleted };
 });
 
@@ -482,6 +538,8 @@ app.whenReady().then(() => {
 
   registerWorkspaceProtocol();
   loadStore();
+  try { initializeWorkspaces(); }
+  catch (err) { console.warn('初始化工作区文件夹失败', err.message); }
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

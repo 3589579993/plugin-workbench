@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <title>可插件化工作台</title>
+<script>
+  const THEME_STORAGE_KEY = 'ui.theme';
+  try {
+    if (localStorage.getItem(THEME_STORAGE_KEY) === 'dark') {
+      document.documentElement.dataset.theme = 'dark';
+    }
+  } catch { /* 存储不可用时使用浅色外观。 */ }
+</script>
 <style>
   /* ═══════════════════════════════════════════════════════════════
      视觉规范：雪艺软件办公文档视觉设计规范 V1.2
@@ -16,17 +24,55 @@
     --primary:#0052CC;   /* 品牌主色（科技蓝）：标题前缀、关键文字、链接 */
     --text:#172B4D;      /* 正文主色（深空灰）：替代纯黑 */
     --muted:#6B778C;     /* 辅助说明（中性灰）：边框、分割线、标注 */
-    --dim:#6B778C;       /* 兼容旧变量名 */
+    --dim:var(--muted); /* 兼容旧变量名 */
     --line:#E1E4E8;      /* 分隔线 / 图片边框 */
+    --canvas:#FFFFFF;
     --panel:#FFFFFF;
     --soft:#F4F5F7;      /* 表头 / 悬停底色 */
+    --surface-muted:#FAFBFC;
+    --console-bg:#FCFDFE;
+    --workspace-active:var(--panel);
+    --primary-solid:#0052CC;
+    --primary-hover:#0747A6;
+    --primary-tint:#DEEBFF;
+    --primary-line:#B3D4FF;
+    --path-bg:rgba(0,82,204,.06);
     --ok:#00875A;        /* 积极 / 确认 */
+    --ok-bg:#E3FCEF;
+    --ok-line:#ABF5D1;
     --err:#DE350B;       /* 警示 / 否定 */
+    --err-bg:#FFEBE6;
+    --err-line:#FFBDAD;
+    --err-solid:#DE350B;
     --mono:"SF Mono",Consolas,"Cascadia Mono",monospace;
     --sans:"PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,system-ui,sans-serif;
   }
+  :root[data-theme="dark"]{
+    --primary:#86B8FF;
+    --text:#F1F1F1;
+    --muted:#B8B8B8;
+    --line:#383838;
+    --canvas:#000000;
+    --panel:var(--canvas);
+    --soft:#1A1A1A;
+    --surface-muted:var(--canvas);
+    --console-bg:var(--canvas);
+    --workspace-active:var(--primary-tint);
+    --primary-solid:#262626;
+    --primary-hover:#393939;
+    --primary-tint:#202020;
+    --primary-line:#555555;
+    --path-bg:#161616;
+    --ok:#79E1B6;
+    --ok-bg:#18372B;
+    --ok-line:#35684F;
+    --err:#FFA49C;
+    --err-bg:#412928;
+    --err-line:#754541;
+    --err-solid:#B63532;
+  }
   html,body{height:100%}
-  body{background:var(--panel);color:var(--text);font-size:13.5px;line-height:1.6;
+  body{background:var(--canvas);color:var(--text);font-size:13.5px;line-height:1.6;
     overflow:hidden;font-family:var(--sans);-webkit-font-smoothing:antialiased}
   .app{display:flex;flex-direction:column;height:100vh}
 
@@ -38,7 +84,7 @@
   .ver{font-size:12px;font-weight:400;color:var(--muted);border:1px solid var(--line);
     padding:2px 8px;border-radius:3px}
   .topbar-actions{display:flex;align-items:center;gap:10px}
-  .badge-real{font-size:12px;color:var(--ok);background:#E3FCEF;border:1px solid #ABF5D1;
+  .badge-real{font-size:12px;color:var(--ok);background:var(--ok-bg);border:1px solid var(--ok-line);
     padding:4px 10px;border-radius:3px;white-space:nowrap}
 
   /* ── 按钮 ── */
@@ -46,12 +92,15 @@
     padding:7px 14px;border-radius:4px;cursor:pointer;font-size:13px;font-family:inherit;
     transition:.15s;white-space:nowrap}
   .btn:hover{border-color:var(--primary);color:var(--primary)}
-  .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
-  .btn.primary:hover{background:#0747A6;border-color:#0747A6;color:#fff}
+  .btn.primary{background:var(--primary-solid);border-color:var(--primary-solid);color:#fff}
+  .btn.primary:hover{background:var(--primary-hover);border-color:var(--primary-hover);color:#fff}
+  .btn:focus-visible,.wc:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  :root[data-theme="dark"] .theme-toggle{background:var(--primary-tint);border-color:var(--primary-line);color:var(--primary)}
+  :root[data-theme="dark"] .theme-toggle:hover{border-color:var(--primary)}
   .btn.ghost{background:transparent}
   .btn.small{padding:4px 11px;font-size:12px}
-  .btn.danger{border-color:#FFBDAD;color:var(--err)}
-  .btn.danger:hover{border-color:var(--err);background:#FFEBE6;color:var(--err)}
+  .btn.danger{border-color:var(--err-line);color:var(--err)}
+  .btn.danger:hover{border-color:var(--err);background:var(--err-bg);color:var(--err)}
 
   .body{display:flex;flex:1;min-height:0}
 
@@ -73,29 +122,27 @@
   body.resizing{user-select:none;cursor:inherit}
 
   /* ── 左侧：工作区列表（宿主专有） ── */
-  .sidebar{width:var(--sidebar-w,232px);flex:none;background:#FAFBFC;border-right:1px solid var(--line);
+  .sidebar{width:var(--sidebar-w,232px);flex:none;background:var(--surface-muted);border-right:1px solid var(--line);
     padding:14px 12px;display:flex;flex-direction:column;gap:6px;overflow:auto}
   .side-title{font-size:12px;color:var(--muted);letter-spacing:.06em;padding:2px 8px 10px}
   .ws-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:4px;
     cursor:pointer;color:var(--text);font-size:13.5px;transition:.12s;
     border-left:3px solid transparent}
   .ws-item:hover{background:var(--soft)}
-  .ws-item.active{background:var(--panel);color:var(--primary);font-weight:500;
+  .ws-item.active{background:var(--workspace-active);color:var(--primary);font-weight:500;
     border-left-color:var(--primary);box-shadow:0 1px 2px rgba(9,30,66,.08)}
   .ws-item .ic{font-size:15px;width:18px;text-align:center;flex:none}
   .ws-item .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-  .ws-item .tag{font-size:10.5px;color:var(--muted);border:1px solid var(--line);
-    border-radius:3px;padding:1px 6px;background:var(--panel)}
   .ws-item .x{opacity:0;color:var(--muted);font-size:13px;padding:0 3px;border-radius:3px}
   .ws-item:hover .x{opacity:1}
-  .ws-item .x:hover{color:var(--err);background:#FFEBE6}
+  .ws-item .x:hover{color:var(--err);background:var(--err-bg)}
   .side-foot{margin-top:auto;padding:10px 8px 4px;font-size:11.5px;color:var(--muted);
     line-height:1.7;border-top:1px solid var(--line)}
   .side-foot .side-head{font-size:11px;color:var(--dim);letter-spacing:.05em;margin-bottom:5px}
   .side-foot .side-path{font-family:var(--mono);font-size:10.5px;color:var(--primary);
     word-break:break-all;line-height:1.5;cursor:pointer;padding:4px 6px;border-radius:4px;
-    background:rgba(0,82,204,.06);border:1px dashed #B3D4FF}
-  .side-foot .side-path:hover{background:#DEEBFF;border-style:solid}
+    background:var(--path-bg);border:1px dashed var(--primary-line)}
+  .side-foot .side-path:hover{background:var(--primary-tint);border-style:solid}
   .side-foot .side-hint{margin-top:7px;font-size:10.5px;color:var(--dim);line-height:1.6}
 
   /* ── 主区：内容区（插件声明的区域，和输出面板用同一套"面板"语言） ── */
@@ -127,7 +174,7 @@
   .web-bar .btn{padding:4px 10px;font-size:12px}
   .web-url{flex:1;min-width:0;background:var(--soft);border:1px solid var(--line);border-radius:4px;
     padding:5px 9px;font-family:var(--mono);font-size:11.5px;color:var(--text);outline:none}
-  .web-url:focus{border-color:var(--primary);background:#fff}
+  .web-url:focus{border-color:var(--primary);background:var(--panel)}
   .web-status{flex:none;font-size:11px;color:var(--muted);min-width:52px;text-align:right}
   .web-host webview{flex:1;width:100%;min-height:0;border:1px solid var(--line);border-radius:4px;
     display:flex;background:#fff}
@@ -155,11 +202,11 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .pill{position:absolute;top:13px;right:13px;font-size:11px;padding:2px 8px;border-radius:3px;
     border:1px solid var(--line);color:var(--muted);background:var(--soft);white-space:nowrap}
-  .pill.running{color:var(--primary);border-color:#B3D4FF;background:#DEEBFF}
-  .pill.success{color:var(--ok);border-color:#ABF5D1;background:#E3FCEF}
-  .pill.failed{color:var(--err);border-color:#FFBDAD;background:#FFEBE6}
+  .pill.running{color:var(--primary);border-color:var(--primary-line);background:var(--primary-tint)}
+  .pill.success{color:var(--ok);border-color:var(--ok-line);background:var(--ok-bg)}
+  .pill.failed{color:var(--err);border-color:var(--err-line);background:var(--err-bg)}
   .empty{color:var(--muted);font-size:13px;line-height:2;padding:34px 22px;text-align:center;
-    grid-column:1/-1;border:1px dashed var(--line);border-radius:6px;background:#FAFBFC}
+    grid-column:1/-1;border:1px dashed var(--line);border-radius:6px;background:var(--surface-muted)}
 
   /* ── 输出面板（宿主提供的能力） ── */
   .console{flex:0 0 var(--console-h,300px);min-height:120px;display:flex;flex-direction:column;
@@ -170,7 +217,8 @@
   .console-head .t{display:flex;align-items:center;gap:8px}
   .console-head .t::before{content:"";width:3px;height:13px;border-radius:2px;background:var(--primary)}
   .console-body{flex:1;overflow:auto;padding:12px 15px;font-family:var(--mono);
-    font-size:12.5px;line-height:1.75;white-space:pre-wrap;word-break:break-all;background:#FCFDFE}
+    font-size:12.5px;line-height:1.75;white-space:pre-wrap;word-break:break-all;background:var(--console-bg)}
+  :root[data-theme="dark"] :is(.sidebar,.console-body){color-scheme:dark}
   .l-time{color:var(--muted)}
   .l-cmd{color:var(--primary)}
   .l-ok{color:var(--ok)}
@@ -190,7 +238,7 @@
     color:var(--muted);font-size:13px;cursor:pointer;font-family:var(--sans);
     border-radius:4px;transition:.12s;line-height:1}
   .wc:hover{background:var(--soft);color:var(--text)}
-  .wc.close:hover{background:var(--err);color:#fff}
+  .wc.close:hover{background:var(--err-solid);color:#fff}
 </style>
 </head>
 <body>
@@ -201,6 +249,7 @@
     <div class="topbar-actions">
       <span class="badge-real">真实执行模式：会在本机运行命令</span>
       <button class="btn" id="btnRefresh" title="重新扫描工作区文件夹（复制进新工作区后点它）">⟳ 刷新</button>
+      <button class="btn theme-toggle" id="btnTheme" type="button">深色模式</button>
       <div class="winctl">
         <button class="wc" id="wcMin" title="最小化">─</button>
         <button class="wc" id="wcMax" title="最大化">□</button>
@@ -217,7 +266,7 @@
         <div class="side-head">工作区文件夹</div>
         <div class="side-path" id="wsDirPath" title="">（读取中…）</div>
         <div class="side-hint">
-          复制工作区包进来，再点<br>顶栏「⟳ 刷新」<br>
+          添加或移除工作区后，点<br>顶栏「⟳ 刷新」<br>
           <span style="color:var(--muted)">点路径打开文件夹</span>
         </div>
       </div>
@@ -263,6 +312,7 @@
 
 <script>
 const $ = id => document.getElementById(id);
+const root = document.documentElement;
 let workspaces = [];
 let currentId = null;
 let webState = null;      // { wsId, key, url }：当前内嵌浏览器属于哪个工作区
@@ -325,19 +375,16 @@ function renderSidebar(){
     const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = w.icon || '📦';
     const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = w.name || '(未命名)';
     li.append(ic, nm);
-    if (w.builtin) {
-      const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = '内置';
-      li.appendChild(tag);
-    } else {
-      const x = document.createElement('span'); x.className = 'x'; x.textContent = '✕'; x.title = '卸载';
-      x.onclick = async ev => {
-        ev.stopPropagation();
-        const r = await window.wb.uninstall(w.dir);
-        log('已卸载工作区：' + w.name + ((r && r.deleted) ? '（并已删除复制进软件目录的文件）' : ''), 'l-dim');
-        await refresh();
-      };
-      li.appendChild(x);
-    }
+    const x = document.createElement('span'); x.className = 'x'; x.textContent = '✕'; x.title = '删除工作区';
+    x.onclick = async ev => {
+      ev.stopPropagation();
+      const r = await window.wb.uninstall(w.dir);
+      if (r.canceled) return;
+      if (!r.ok) { log(r.error, 'l-err'); return; }
+      log('已卸载工作区：' + w.name + (r.deleted ? '（并已删除复制进软件目录的文件）' : ''), 'l-dim');
+      await refresh();
+    };
+    li.appendChild(x);
     li.title = w.description || w.name;
     li.onclick = () => { currentId = w.id; renderSidebar(); renderMain(); };
     ul.appendChild(li);
@@ -782,7 +829,7 @@ async function refresh(preferId){
   workspaces = await window.wb.listWorkspaces();
   if (preferId) currentId = preferId;
   if (!workspaces.some(w => w.id === currentId)) currentId = workspaces.length ? workspaces[0].id : null;
-  // 手动「刷新」时连同当前自定义界面一起重载，避免内置 ui 改了却还显示旧 iframe
+  // 手动「刷新」时重新加载当前自定义界面，让工作区文件夹里的改动立即生效
   $('pluginHost').dataset.ws = '';
   renderSidebar();
   renderMain();
@@ -800,6 +847,20 @@ $('btnRefresh').onclick = async () => {
   log('已刷新：重新扫描工作区文件夹，共 ' + after + ' 个工作区' +
       (after > before ? '（新增 ' + (after - before) + ' 个）' : ''), 'l-ok');
 };
+const themeToggle = $('btnTheme');
+function syncThemeToggle() {
+  themeToggle.textContent = root.dataset.theme === 'dark' ? '浅色模式' : '深色模式';
+}
+syncThemeToggle();
+themeToggle.onclick = () => {
+  const theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+  root.dataset.theme = theme;
+  syncThemeToggle();
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch { /* 存储不可用时仍可在当前窗口切换。 */ }
+};
+
 $('btnClear').onclick = () => { $('log').innerHTML = ''; };
 $('btnStopAll').onclick = () => {
   const ids = Object.keys(runOf);
@@ -828,7 +889,6 @@ document.querySelector('.topbar').addEventListener('dblclick', async e => {
 syncMaxIcon();
 
 /* ── 可拖动分界线：拖侧栏右边缘调宽度 / 拖输出区上边缘调高度 ── */
-const root = document.documentElement;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 let drag = null;   // 'v' = 竖线（侧栏宽度）｜'h' = 横线（输出区高度）
 

@@ -45,7 +45,8 @@ function boot(opts) {
     appOn: {},           // app.on 注册的生命周期钩子
     protocolHandler: null,
     dialog: {
-      messageBoxAnswer: 0,     // showMessageBoxSync 的返回值（0=覆盖安装 / 1=取消）
+      messageBoxAnswer: 0,     // showMessageBoxSync 返回的按钮索引
+      lastMessageBox: null,
       openDialogResult: []     // showOpenDialog 返回的 filePaths
     },
     quitCalls: 0
@@ -91,7 +92,10 @@ function boot(opts) {
       handle: function (channel, fn) { state.handlers[channel] = fn; }
     },
     dialog: {
-      showMessageBoxSync: function () { return state.dialog.messageBoxAnswer; },
+      showMessageBoxSync: function (_window, options) {
+        state.dialog.lastMessageBox = options;
+        return state.dialog.messageBoxAnswer;
+      },
       showOpenDialog: function () {
         return Promise.resolve({
           canceled: state.dialog.openDialogResult.length === 0,
