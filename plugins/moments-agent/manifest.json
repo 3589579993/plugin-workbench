@@ -1,0 +1,93 @@
+{
+  "id": "moments-agent",
+  "name": "朋友圈助手",
+  "icon": "📸",
+  "description": "导入 → 挑图 → 调色 → 排版 → 文案 → 导出，一条流程发一条像样的朋友圈；扫码从手机相册传图，AI 给建议，记住你的习惯",
+  "version": "1.0.0",
+  "permissions": [
+    "exec"
+  ],
+  "ui": {
+    "entry": "ui/index.html"
+  },
+  "actions": [
+    {
+      "id": "import-phone",
+      "title": "从手机导入",
+      "icon": "📱",
+      "script": "scripts/main.js",
+      "args": ["import-phone"]
+    },
+    {
+      "id": "import-folder",
+      "title": "从文件夹导入",
+      "icon": "📁",
+      "script": "scripts/main.js",
+      "args": ["import-folder"]
+    },
+    {
+      "id": "pick-photos",
+      "title": "挑照片",
+      "icon": "✨",
+      "script": "scripts/main.js",
+      "args": ["pick-photos"]
+    },
+    {
+      "id": "color-grade",
+      "title": "调色",
+      "icon": "🎨",
+      "script": "scripts/main.js",
+      "args": ["color-grade"]
+    },
+    {
+      "id": "layout",
+      "title": "排版",
+      "icon": "🧩",
+      "script": "scripts/main.js",
+      "args": ["layout"]
+    },
+    {
+      "id": "write-caption",
+      "title": "写文案",
+      "icon": "✍️",
+      "script": "scripts/main.js",
+      "args": ["write-caption"]
+    },
+    {
+      "id": "export",
+      "title": "导出发布包",
+      "icon": "📦",
+      "script": "scripts/main.js",
+      "args": ["export"]
+    },
+    {
+      "id": "preferences",
+      "title": "我的偏好",
+      "icon": "🧠",
+      "script": "scripts/main.js",
+      "args": ["preferences"]
+    },
+    {
+      "id": "ai-settings",
+      "title": "AI 设置",
+      "icon": "⚙️",
+      "script": "scripts/main.js",
+      "args": ["ai-settings"]
+    },
+    {
+      "id": "engine",
+      "title": "启动引擎",
+      "icon": "🔌",
+      "mode": "service",
+      "script": "scripts/main.js",
+      "args": ["engine"]
+    },
+    {
+      "id": "engine-info",
+      "title": "查询引擎地址",
+      "icon": "🔎",
+      "script": "scripts/main.js",
+      "args": ["engine-info"]
+    }
+  ]
+}

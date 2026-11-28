@@ -4,6 +4,12 @@
 
 桌面软件（Electron）。当前版本 **v0.1**：外壳 + 工作区包（手动复制安装）+ 默认渲染按钮 + **真实执行命令** + 实时输出 + 停止 + 命令可见。
 
+## 朋友圈助手
+
+安装前先在仓库根目录运行 `npm ci` 和 `npm start`。点击工作台左下角的「工作区文件夹」，将 `plugins/moments-agent/` 整个目录复制进去，再在工作台点「刷新」，打开左侧的「朋友圈助手」。AI 接口可在插件内按需配置。草稿、照片与 AI 设置保存在本机插件数据目录。
+
+详细使用方法见 [朋友圈助手 README](plugins/moments-agent/README.md)。运行 `npm run test:moments` 可以验证插件逻辑，运行 `npm run test:electron:moments` 可以验证 Electron 界面和离线流程。
+
 ## 团队成员
 
 | 姓名 | 角色 | 主要职责 |

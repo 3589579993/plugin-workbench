@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>朋友圈助手</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="connect"><div><div class="spinner"></div><p id="connectText">连接中…</p><p class="muted small" id="connectHint"></p><button id="retry" class="primary hidden">重新启动引擎</button></div></div>
+
+<header>
+  <span class="logo">📸 朋友圈助手</span>
+  <span class="draft" id="draftLabel"></span>
+  <button class="link small" id="btnNewDraft">＋ 新草稿</button>
+  <nav>
+    <button id="navPrefs">🧠 我的偏好</button>
+    <button id="navAi">⚙️ AI 设置</button>
+    <span class="small muted" style="align-self:center" id="engineState"><span class="dot"></span>引擎</span>
+  </nav>
+</header>
+<div class="steps" id="steps"></div>
+
+<div class="layout">
+  <main id="main"></main>
+  <aside>
+    <div class="card">
+      <div class="row"><b class="grow" id="logTitle">执行进度</b><button class="link small" id="clearLog">清空</button></div>
+      <div id="tip" class="muted small"></div>
+      <div id="log"></div>
+    </div>
+  </aside>
+</div>
+
+<input type="file" id="fileRef" accept="image/*" hidden>
+<input type="file" id="fileShots" accept="image/*" multiple hidden>
+<script src="../scripts/lib/grade.js"></script>
+<script src="imaging.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

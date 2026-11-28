@@ -635,6 +635,8 @@ function actionId(w, a, i){
    · 执行权、命令原文、输出回显，全部仍由宿主掌握
    ══════════════════════════════════════════════════════════════ */
 let pluginTimer = null;
+const starting = new Set();
+const finishedBeforeReply = new Set();
 
 function pluginFrame(){ return document.querySelector('#pluginHost iframe'); }
 
@@ -642,7 +644,7 @@ function pluginActionList(w){
   return (w.actions || []).map((a, i) => {
     const aid = actionId(w, a, i);
     return { id: aid, title: a.title, icon: a.icon, command: a.command,
-             running: !!runOf[aid], last: lastOf[aid] || null };
+             running: !!runOf[aid] || starting.has(aid), available: a.available, unavailableReason: a.unavailableReason, last: lastOf[aid] || null };
   });
 }
 
@@ -713,7 +715,7 @@ window.addEventListener('message', async ev => {
   if (!f || ev.source !== f.contentWindow) return;    // 来源校验
   const msg = ev.data || {};
   const w = current();
-  if (!w || !w.ui) return;
+  if (!w || !w.ui || $('pluginHost').dataset.ws !== w.id || $('pluginHost').classList.contains('hidden')) return;
 
   if (msg.type === 'ready') {
     $('pluginHost').dataset.ready = w.id;
@@ -761,31 +763,39 @@ async function startAction(w, a, aid){
     renderWeb(w, loadLastUrl(w.id, 'a:' + aid, a.web), 'a:' + aid, a.web);
     return;
   }
-  if (runOf[aid]) return;
+  if (runOf[aid] || starting.has(aid) || a.available === false) return;
+  starting.add(aid);
   log('▶ ' + a.title, 'l-dim');
   log('$ ' + a.command, 'l-cmd');
-  const r = await window.wb.run({
-    workspaceId: w.id, actionId: aid, command: a.command, cwd: a.cwd
-  });
+  let r;
+  try {
+    r = await window.wb.run(a.script
+      ? { workspaceId: w.id, actionId: aid }
+      : { workspaceId: w.id, actionId: aid, command: a.command, cwd: a.cwd });
+  } catch (error) { r = { ok: false, error: error.message }; }
+  finally { starting.delete(aid); }
   if (!r || !r.ok) {
     log('启动失败：' + ((r && r.error) || '未知错误'), 'l-err');
     lastOf[aid] = { state: 'failed', dur: '0.0' };
     renderMain();
     return;
   }
-  runOf[aid] = r.runId;
+  if (!finishedBeforeReply.delete(r.runId)) runOf[aid] = r.runId;
   renderMain();
 }
 
 /* ── 后台事件 ── */
 window.wb.onEvent(msg => {
-  if (msg.type === 'output') {
+  const sameWorkspace = !msg.workspaceId || (msg.workspaceId === currentId && $('pluginHost').dataset.ws === currentId && !$('pluginHost').classList.contains('hidden'));
+  if (msg.type === 'workspace-message') {
+    if (sameWorkspace && msg.workspaceId) postToPlugin({ type: 'workspace-message', name: msg.name, data: msg.data });
+  } else if (msg.type === 'output') {
     appendChunk(msg.stream, msg.text);
-    postToPlugin({ type: 'output', actionId: msg.actionId, runId: msg.runId,
+    if (sameWorkspace) postToPlugin({ type: 'output', actionId: msg.actionId, runId: msg.runId,
                    stream: msg.stream, text: msg.text });
   } else if (msg.type === 'started') {
     if (msg.cwd) log('↳ 工作目录：' + msg.cwd, 'l-dim');
-    postToPlugin({ type: 'action-started', actionId: msg.actionId, runId: msg.runId,
+    if (sameWorkspace) postToPlugin({ type: 'action-started', actionId: msg.actionId, runId: msg.runId,
                    command: msg.command, pid: msg.pid });
   } else if (msg.type === 'maximized') {
     $('wcMax').textContent = msg.value ? '❐' : '□';
@@ -801,8 +811,9 @@ window.wb.onEvent(msg => {
       log('✗ 结束，退出码 ' + msg.code + '（用时 ' + msg.duration + 's）', 'l-err');
       lastOf[aid] = { state: 'failed', dur: msg.duration };
     }
-    delete runOf[aid];
-    postToPlugin({ type: 'action-exit', actionId: aid, runId: msg.runId, code: msg.code,
+    if (runOf[aid] === msg.runId) delete runOf[aid];
+    else if (starting.has(aid)) finishedBeforeReply.add(msg.runId);
+    if (sameWorkspace) postToPlugin({ type: 'action-exit', actionId: aid, runId: msg.runId, code: msg.code,
                    stopped: !!msg.stopped, duration: msg.duration });
     renderMain();
   }
