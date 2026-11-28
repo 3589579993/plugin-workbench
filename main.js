@@ -8,6 +8,9 @@ const { app, BrowserWindow, ipcMain, dialog, shell, protocol } = require('electr
 const path = require('path');
 const fs = require('fs');
 const { spawn, exec } = require('child_process');
+const { randomUUID } = require('node:crypto');
+const { validateAction, resolveAction, scriptPath, actionId, workspaceDataKey } = require('./lib/action-spec');
+const { attachScriptBridge } = require('./lib/script-bridge');
 const { resolveRun } = require('./lib/resolve-run');
 
 // ── 自定义协议：只为「工作区目录」提供文件访问 ──────────────────
@@ -65,7 +68,7 @@ function validateManifest(m) {
   m.actions.forEach((a, i) => {
     if (!a || typeof a !== 'object') throw new Error(`第 ${i + 1} 个动作格式错误`);
     if (!a.title) throw new Error(`第 ${i + 1} 个动作缺少 title（按钮名）`);
-    if (!a.command) throw new Error(`第 ${i + 1} 个动作缺少 command（要执行的命令）`);
+    validateAction(a, i);
   });
   if (!m.icon) m.icon = '📦';
   if (!m.permissions) m.permissions = ['exec'];
@@ -193,6 +196,7 @@ function send(msg) {
 
 /** Windows 上杀掉整棵进程树（只杀父进程常常留下子进程） */
 function killTree(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return;
   if (process.platform === 'win32') {
     exec(`taskkill /pid ${pid} /T /F`, () => {});
   } else {
@@ -251,11 +255,52 @@ function runAction(spec) {
   return { ok: true, runId, pid: child.pid };
 }
 
+function runScript(ws, action, uid) {
+  if (!action.available) return { ok: false, error: action.unavailableReason };
+  if ([...runs.values()].some(run => run.workspaceId === ws.id && run.actionId === uid)) {
+    return { ok: false, error: '此动作已在运行' };
+  }
+  const runId = 'run-' + randomUUID();
+  const cwd = action.cwd ? path.resolve(ws.dir, action.cwd.replace(/[\\/]/g, path.sep)) : ws.dir;
+  let child;
+  try {
+    if (!fs.statSync(cwd, { throwIfNoEntry: false })?.isDirectory()) return { ok: false, error: '工作目录不存在：' + cwd };
+    child = spawn(process.execPath, [scriptPath(ws.dir, action.script), ...(action.args || [])], {
+      cwd, detached: process.platform !== 'win32', windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+      env: {
+        ...process.env, ELECTRON_RUN_AS_NODE: '1', WB_HOST_PID: String(process.pid),
+        WB_SDK_PATH: path.join(__dirname, 'lib', 'plugin-sdk.js'),
+        WB_DATA_DIR: path.join(app.getPath('userData'), 'plugin-data', workspaceDataKey(ws.id))
+      }
+    });
+  } catch (error) { return { ok: false, error: error.message }; }
+  const meta = { runId, workspaceId: ws.id, actionId: uid };
+  const rec = { child, pid: child.pid, ...meta, startedAt: Date.now(), stopped: false };
+  runs.set(runId, rec);
+  attachScriptBridge({
+    child, dialog, shell, getWindow: () => win,
+    active: () => runs.has(runId) && !rec.stopped,
+    publish: (name, data) => send({ ...meta, type: 'workspace-message', name, data })
+  });
+  send({ ...meta, type: 'started', command: action.command, pid: child.pid, cwd });
+  for (const stream of ['stdout', 'stderr']) {
+    child[stream].setEncoding('utf8');
+    child[stream].on('data', text => send({ ...meta, type: 'output', stream, text }));
+  }
+  child.on('error', error => send({ ...meta, type: 'output', stream: 'stderr', text: '启动失败：' + error.message + '\n' }));
+  child.on('close', (code, signal) => {
+    runs.delete(runId);
+    send({ ...meta, type: 'exit', code, signal, stopped: rec.stopped, duration: ((Date.now() - rec.startedAt) / 1000).toFixed(1) });
+  });
+  return { ok: true, runId, pid: child.pid };
+}
+
 function stopRun(runId) {
   const rec = runs.get(runId);
   if (!rec) return { ok: false, error: '这条执行已经结束' };
   rec.stopped = true;
-  send({ type: 'output', runId, stream: 'stderr', text: '（用户请求停止，正在结束进程…）\n' });
+  send({ type: 'output', runId, workspaceId: rec.workspaceId, actionId: rec.actionId, stream: 'stderr', text: '（用户请求停止，正在结束进程…）\n' });
   killTree(rec.pid);
   return { ok: true };
 }
@@ -293,7 +338,7 @@ function createWindow() {
 }
 
 // ── IPC（界面 → 后台）────────────────────────────────────────────
-ipcMain.handle('wb:listWorkspaces', () => allWorkspaces());
+ipcMain.handle('wb:listWorkspaces', () => allWorkspaces().map(w => ({ ...w, actions: w.actions.map(a => resolveAction(a)) })));
 
 /** 供界面显示/打开"工作区文件夹"（用户自行把工作区包复制进去） */
 ipcMain.handle('wb:workspaceDir', () => {
@@ -353,7 +398,11 @@ ipcMain.handle('wb:createWorkspace', (e, spec) => {
 });
 
 ipcMain.handle('wb:run', (e, spec) => {
-  if (!spec || !spec.command) return { ok: false, error: '缺少命令' };
+  if (!spec) return { ok: false, error: '缺少命令' };
+  const ws = allWorkspaces().find(w => w.id === spec.workspaceId);
+  const action = ws?.actions.find((a, i) => actionId(ws, a, i) === spec.actionId);
+  if (action?.script) return runScript(ws, resolveAction(action), spec.actionId);
+  if (!spec.command) return { ok: false, error: '缺少命令' };
   return runAction(spec);
 });
 
